@@ -388,10 +388,12 @@ a:hover {
 
 .word-card-stats {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 11px;
     color: #64748b;
     margin-top: 8px;
+    align-items: center;
 }
 
 /* Checkbox Group */
@@ -582,10 +584,12 @@ a:hover {
 
 .word-card-stats {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 11px;
     color: #64748b;
     margin-top: 8px;
+    align-items: center;
 }
 
 /* Checkbox Group */
@@ -654,8 +658,250 @@ select:focus {
     border-color: #22c55e;
 }
 
+.history-category-select {
+    min-width: 100px;
+    max-width: 120px;
+    padding: 4px 8px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #e2e8f0;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.history-category-select:hover {
+    border-color: #3b82f6;
+}
+
+.history-category-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.word-category-select {
+    min-width: 100px;
+    max-width: 120px;
+    padding: 4px 8px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #e2e8f0;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.word-category-select:hover {
+    border-color: #3b82f6;
+}
+
+.word-category-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
 .save-container {
     margin-top: 20px;
     padding-top: 16px;
     border-top: 1px solid #1e293b;
+}
+
+.secondary-btn {
+    background: #334155;
+    color: #e2e8f0;
+    border: 1px solid #475569;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    width: 100%;
+}
+
+.secondary-btn:hover {
+    background: #475569;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Word card with errors - orange highlight */
+.word-card.needs-practice {
+    border-color: #f97316;
+    background: linear-gradient(135deg, #1e293b 0%, #292524 100%);
+}
+
+.practice-badge {
+    color: #f97316;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+/* Make word cards clickable */
+.word-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.word-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Word detail overlay */
+.word-detail-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.word-detail-overlay.fade-out {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.word-detail-modal {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border: 2px solid #475569;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.word-detail-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 32px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.word-detail-close:hover {
+    color: #f1f5f9;
+}
+
+.word-detail-content {
+    color: #e2e8f0;
+}
+
+.word-detail-header {
+    margin-bottom: 24px;
+    border-bottom: 2px solid #334155;
+    padding-bottom: 16px;
+}
+
+.word-detail-header h2 {
+    font-size: 28px;
+    margin: 0 0 8px 0;
+    color: #60a5fa;
+}
+
+.word-detail-transcription {
+    font-size: 16px;
+    color: #94a3b8;
+    font-style: italic;
+    margin: 0;
+}
+
+.word-detail-translation,
+.word-detail-explanation,
+.word-detail-example,
+.word-detail-examples {
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.word-detail-translation strong,
+.word-detail-explanation strong,
+.word-detail-example strong,
+.word-detail-examples strong {
+    color: #60a5fa;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.word-detail-examples ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.word-detail-examples li {
+    padding: 8px 12px;
+    background: rgba(51, 65, 85, 0.5);
+    border-left: 3px solid #3b82f6;
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+
+.word-detail-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid #334155;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.stat-value.correct {
+    color: #4ade80;
+}
+
+.stat-value.wrong {
+    color: #f87171;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }

@@ -1,6 +1,7 @@
 // Word Popup Logic
 
-window.openWordPopup = function (word, x, y) {
+window.openWordPopup = async function (word, x, y) {
+    await window.AiSubtitlesI18n.init();
     // Remove existing popup
     const existing = document.querySelector('.aisub-popup');
     if (existing) existing.remove();
@@ -16,14 +17,22 @@ window.openWordPopup = function (word, x, y) {
             <span class="aisub-popup-close">✕</span>
         </div>
         <div class="aisub-popup-content">
-            <div class="aisub-loading">Loading explanation...</div>
+            <div class="aisub-loading">${window.AiSubtitlesI18n.getMessage('popup_loading_explanation')}</div>
         </div>
         <div class="aisub-popup-actions">
-            <button class="aisub-btn" id="aisub-learn-btn">Learn</button>
+            <div style="display: flex; gap: 8px; width: 100%;">
+                <select id="aisub-category-select" class="aisub-category-select" style="flex: 1;">
+                    <option value="default">${window.AiSubtitlesI18n.getMessage('category_default') || 'Default'}</option>
+                </select>
+                <button class="aisub-btn" id="aisub-learn-btn">${window.AiSubtitlesI18n.getMessage('popup_learn_btn')}</button>
+            </div>
         </div>
     `;
 
     document.body.appendChild(popup);
+
+    // Load categories
+    loadCategories(popup);
 
     // Close handler
     popup.querySelector('.aisub-popup-close').addEventListener('click', () => popup.remove());
@@ -38,8 +47,8 @@ window.openWordPopup = function (word, x, y) {
         const content = popup.querySelector('.aisub-popup-content');
         if (response && response.success) {
             content.innerHTML = `
-                <div><strong>Trans:</strong> ${response.data.transcription || ''}</div>
-                <div><strong>Translation:</strong> ${response.data.translation}</div>
+                <div><strong>${window.AiSubtitlesI18n.getMessage('popup_transcription')}:</strong> ${response.data.transcription || ''}</div>
+                <div><strong>${window.AiSubtitlesI18n.getMessage('popup_translation')}:</strong> ${response.data.translation}</div>
                 <div style="margin-top:8px; font-size:12px; color:#ccc;">${response.data.explanation}</div>
             `;
 
@@ -57,7 +66,7 @@ window.openWordPopup = function (word, x, y) {
             // Save to history
             saveToHistory(response.data);
         } else {
-            content.innerHTML = `<div style="color:#ef4444;">Error: ${response.error || 'Unknown error'}</div>`;
+            content.innerHTML = `<div style="color:#ef4444;">${window.AiSubtitlesI18n.getMessage('error_prefix')} ${response.error || window.AiSubtitlesI18n.getMessage('error_unknown')}</div>`;
         }
     });
 
@@ -65,9 +74,14 @@ window.openWordPopup = function (word, x, y) {
     popup.querySelector('#aisub-learn-btn').addEventListener('click', () => {
         const data = popup.dataset.fullData ? JSON.parse(popup.dataset.fullData) : {};
         data.word = word; // Ensure word is in the data
+
+        // Get selected category
+        const categorySelect = popup.querySelector('#aisub-category-select');
+        data.category = categorySelect.value;
+
         console.log('[Save Word] Saving to learning list:', data);
         chrome.runtime.sendMessage({ type: 'ADD_TO_LEARN', data: data }, () => {
-            alert('Added to learning list!');
+            alert(`${window.AiSubtitlesI18n.getMessage('popup_added_to_category')} "${data.category}"!`);
             popup.remove();
         });
     });
@@ -145,3 +159,89 @@ async function saveToHistory(wordData) {
 
     await chrome.storage.local.set({ wordHistory: history });
 }
+
+// Load categories into select dropdown
+async function loadCategories(popup) {
+    const result = await chrome.storage.local.get(['categories']);
+    const categories = result.categories || ['default'];
+
+    const select = popup.querySelector('#aisub-category-select');
+    select.innerHTML = categories.map(cat =>
+        `<option value="${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</option>`
+    ).join('');
+
+    // Add option to create new category
+    const newOption = document.createElement('option');
+    newOption.value = '__new__';
+    newOption.textContent = window.AiSubtitlesI18n.getMessage('category_new');
+    select.appendChild(newOption);
+
+    // Handle new category creation
+    select.addEventListener('change', async (e) => {
+        if (e.target.value === '__new__') {
+            const newCategory = prompt('Enter new category name:');
+            if (newCategory && newCategory.trim()) {
+                const categoryName = newCategory.trim().toLowerCase();
+
+                // Add to storage
+                const cats = result.categories || ['default'];
+                if (!cats.includes(categoryName)) {
+                    cats.push(categoryName);
+                    await chrome.storage.local.set({ categories: cats });
+                }
+
+                // Add to select and select it
+                const option = document.createElement('option');
+                option.value = categoryName;
+                option.textContent = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+                select.insertBefore(option, select.lastChild); // Insert before "+ New Category"
+                select.value = categoryName;
+            } else {
+                select.value = 'default';
+            }
+        }
+    });
+}
+
+// Open popup for already learned word (no API call)
+window.openSavedWordPopup = function (word, x, y, wordData) {
+    // Remove existing popup
+    const existing = document.querySelector('.aisub-popup');
+    if (existing) existing.remove();
+
+    const popup = document.createElement('div');
+    popup.className = 'aisub-popup';
+    popup.style.left = x + 'px';
+    popup.style.top = y + 'px';
+
+    popup.innerHTML = `
+        <div class="aisub-popup-header">
+            <span class="aisub-popup-word">${word}</span>
+            <span class="aisub-popup-close">✕</span>
+        </div>
+        <div class="aisub-popup-content">
+            <div><strong>${window.AiSubtitlesI18n.getMessage('popup_transcription')}:</strong> ${wordData.transcription || ''}</div>
+            <div><strong>${window.AiSubtitlesI18n.getMessage('popup_translation')}:</strong> ${wordData.translation}</div>
+            <div style="margin-top:8px; font-size:12px; color:#ccc;">${wordData.explanation || ''}</div>
+            <div style="margin-top:12px; padding:8px; background:rgba(59,130,246,0.1); border-radius:6px; font-size:12px;">
+                <div style="color:#60a5fa; font-weight:600; margin-bottom:4px;">📊 ${window.AiSubtitlesI18n.getMessage('popup_progress')}:</div>
+                <div style="display:flex; gap:12px;">
+                    <span style="color:#22c55e;">✅ ${wordData.correctCount || 0}</span>
+                    <span style="color:#ef4444;">❌ ${wordData.wrongCount || 0}</span>
+                </div>
+            </div>
+        </div>
+        <div class="aisub-popup-actions">
+            <button class="aisub-btn aisub-btn-secondary" id="aisub-close-btn" style="width:100%;">${window.AiSubtitlesI18n.getMessage('flashcards_close')}</button>
+        </div>
+    `;
+
+    document.body.appendChild(popup);
+
+    // Close handlers
+    popup.querySelector('.aisub-popup-close').addEventListener('click', () => popup.remove());
+    popup.querySelector('#aisub-close-btn').addEventListener('click', () => popup.remove());
+
+    // Make popup draggable
+    makeDraggable(popup, popup.querySelector('.aisub-popup-header'));
+};

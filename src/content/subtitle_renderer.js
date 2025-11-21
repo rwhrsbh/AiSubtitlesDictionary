@@ -3,8 +3,9 @@
 let currentEvents = [];
 let renderInterval = null;
 
-window.startRenderingSubtitles = function (events) {
+window.startRenderingSubtitles = async function (events) {
     console.log('[Subtitle Renderer] Starting with', events.length, 'events');
+    await window.AiSubtitlesI18n.init();
     currentEvents = events;
 
     // Create container if not exists
@@ -60,41 +61,113 @@ function updateSubtitles() {
         if (container.dataset.lastText !== combinedText) {
             container.innerHTML = ''; // Clear
 
-            activeEvents.forEach(evt => {
-                // Handle newlines within a single event text (replace \n with <br>)
-                // But usually we want to split by words for interactivity
-                // If text contains \n, treat as separate lines
-                const lines = evt.text.split(/\n|<br>/);
+            // Load learned words asynchronously
+            loadLearnedWords().then(learnedWords => {
+                activeEvents.forEach(evt => {
+                    const lines = evt.text.split(/\n|<br>/);
 
-                lines.forEach(lineText => {
-                    if (!lineText.trim()) return;
+                    lines.forEach(lineText => {
+                        if (!lineText.trim()) return;
 
-                    const lineDiv = document.createElement('div');
-                    lineDiv.className = 'aisub-line';
+                        const lineDiv = document.createElement('div');
+                        lineDiv.className = 'aisub-line';
 
-                    const words = lineText.trim().split(/\s+/);
-                    const html = words.map(w => `<span class="aisub-word">${w}</span>`).join(' ');
-                    lineDiv.innerHTML = html;
+                        const words = lineText.trim().split(/\s+/);
+                        const html = words.map(w => {
+                            const cleanWord = w.replace(/[^\p{L}\p{N}''-]/gu, '').toLowerCase();
+                            const learned = learnedWords[cleanWord];
 
-                    container.appendChild(lineDiv);
+                            let classes = 'aisub-word';
+                            if (learned) {
+                                classes += ' learned';
+                                if (learned.status === 'success') {
+                                    classes += ' learned-success';
+                                } else if (learned.status === 'progress') {
+                                    classes += ' learned-progress';
+                                } else {
+                                    classes += ' learned-not-started';
+                                }
+                            }
+
+                            return `<span class="${classes}" data-word="${cleanWord}">${w}</span>`;
+                        }).join(' ');
+                        lineDiv.innerHTML = html;
+
+                        container.appendChild(lineDiv);
+                    });
                 });
-            });
 
-            container.dataset.lastText = combinedText;
+                container.dataset.lastText = combinedText;
 
-            // Add click listeners
-            const spans = container.querySelectorAll('.aisub-word');
-            spans.forEach(span => {
-                span.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    video.pause();
-                    window.openWordPopup(span.textContent, e.clientX, e.clientY);
+                // Add click listeners
+                const spans = container.querySelectorAll('.aisub-word');
+                spans.forEach(span => {
+                    span.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+
+                        // Extract clean word (remove punctuation)
+                        const rawText = span.textContent;
+                        const cleanWord = rawText.replace(/[^\p{L}\p{N}''-]/gu, '');
+
+                        // Only open popup if it's an actual word (contains letters)
+                        if (cleanWord && /\p{L}/u.test(cleanWord)) {
+                            video.pause();
+
+                            // Check if word is learned
+                            const wordData = span.dataset.word;
+                            const learnedWord = learnedWords[wordData];
+
+                            if (learnedWord) {
+                                // Show saved data instead of making API request
+                                window.openSavedWordPopup(cleanWord, e.clientX, e.clientY, learnedWord.data);
+                            } else {
+                                // Make API request for new word
+                                window.openWordPopup(cleanWord, e.clientX, e.clientY);
+                            }
+                        }
+                    });
                 });
             });
         }
     } else {
         container.innerHTML = '';
         container.dataset.lastText = '';
+    }
+}
+
+// Load learned words from storage
+async function loadLearnedWords() {
+    try {
+        const result = await chrome.storage.local.get(['learningList']);
+        const list = result.learningList || [];
+
+        const learnedWords = {};
+        list.forEach(word => {
+            const key = word.word.toLowerCase();
+            const correctCount = word.correctCount || 0;
+            const wrongCount = word.wrongCount || 0;
+            const totalCount = correctCount + wrongCount;
+
+            let status = 'not-started';
+            if (totalCount > 0) {
+                const successRate = correctCount / totalCount;
+                if (successRate >= 0.7) {
+                    status = 'success'; // 70%+ correct - green
+                } else {
+                    status = 'progress'; // Below 70% - orange
+                }
+            }
+
+            learnedWords[key] = {
+                data: word,
+                status: status
+            };
+        });
+
+        return learnedWords;
+    } catch (error) {
+        console.error('Error loading learned words:', error);
+        return {};
     }
 }
 
@@ -160,7 +233,7 @@ function initSettings(container) {
     btn.id = 'aisub-settings-btn';
     btn.className = 'aisub-settings-btn';
     btn.innerHTML = '⚙️';
-    btn.title = 'Subtitle Settings';
+    btn.title = window.AiSubtitlesI18n.getMessage('settings_title');
 
     const videoContainer = document.querySelector('.html5-video-player') || document.body;
     videoContainer.appendChild(btn);
@@ -171,28 +244,42 @@ function initSettings(container) {
     panel.className = 'aisub-settings-panel';
     panel.innerHTML = `
         <div class="aisub-settings-header">
-            <span>Subtitle Settings</span>
+            <span>${window.AiSubtitlesI18n.getMessage('settings_title')}</span>
             <span style="cursor:pointer" id="aisub-close-settings">✕</span>
         </div>
         
         <div class="aisub-settings-row">
-            <label class="aisub-settings-label">Text Color</label>
+            <label class="aisub-settings-label">${window.AiSubtitlesI18n.getMessage('settings_text_color')}</label>
             <input type="color" id="aisub-text-color" class="aisub-color-picker" value="#f1f5f9">
         </div>
         
         <div class="aisub-settings-row">
-            <label class="aisub-settings-label">Text Opacity</label>
+            <label class="aisub-settings-label">${window.AiSubtitlesI18n.getMessage('settings_text_opacity')}</label>
             <input type="range" id="aisub-text-opacity" class="aisub-slider" min="0" max="1" step="0.1" value="1">
         </div>
 
         <div class="aisub-settings-row">
-            <label class="aisub-settings-label">Background Color</label>
+            <label class="aisub-settings-label">${window.AiSubtitlesI18n.getMessage('settings_bg_color')}</label>
             <input type="color" id="aisub-bg-color" class="aisub-color-picker" value="#0f172a">
         </div>
 
         <div class="aisub-settings-row">
-            <label class="aisub-settings-label">Background Opacity</label>
+            <label class="aisub-settings-label">${window.AiSubtitlesI18n.getMessage('settings_bg_opacity')}</label>
             <input type="range" id="aisub-bg-opacity" class="aisub-slider" min="0" max="1" step="0.1" value="0.85">
+        </div>
+
+        <div style="border-top: 1px solid #334155; margin: 16px 0; padding-top: 16px;">
+            <div style="font-weight: 600; margin-bottom: 12px; color: #94a3b8; font-size: 13px;">${window.AiSubtitlesI18n.getMessage('settings_learned_words')}</div>
+            
+            <div class="aisub-settings-row">
+                <label class="aisub-settings-label">${window.AiSubtitlesI18n.getMessage('settings_success_color')}</label>
+                <input type="color" id="aisub-learned-success-color" class="aisub-color-picker" value="#22c55e">
+            </div>
+
+            <div class="aisub-settings-row">
+                <label class="aisub-settings-label">${window.AiSubtitlesI18n.getMessage('settings_progress_color')}</label>
+                <input type="color" id="aisub-learned-progress-color" class="aisub-color-picker" value="#f59e0b">
+            </div>
         </div>
     `;
     videoContainer.appendChild(panel);
@@ -212,6 +299,8 @@ function initSettings(container) {
         const textOpacity = document.getElementById('aisub-text-opacity').value;
         const bgColor = document.getElementById('aisub-bg-color').value;
         const bgOpacity = document.getElementById('aisub-bg-opacity').value;
+        const learnedSuccessColor = document.getElementById('aisub-learned-success-color').value;
+        const learnedProgressColor = document.getElementById('aisub-learned-progress-color').value;
 
         // Convert hex to rgba for background
         const r = parseInt(bgColor.substr(1, 2), 16);
@@ -222,6 +311,10 @@ function initSettings(container) {
         const style = document.createElement('style');
         style.id = 'aisub-dynamic-style';
         style.innerHTML = `
+            :root {
+                --learned-success-color: ${learnedSuccessColor};
+                --learned-progress-color: ${learnedProgressColor};
+            }
             .aisub-line {
                 background: ${bgRgba} !important;
                 color: ${textColor} !important;
@@ -235,13 +328,21 @@ function initSettings(container) {
 
         // Save settings
         chrome.storage.local.set({
-            subSettings: { textColor, textOpacity, bgColor, bgOpacity }
+            subSettings: {
+                textColor,
+                textOpacity,
+                bgColor,
+                bgOpacity,
+                learnedSuccessColor,
+                learnedProgressColor
+            }
         });
     }
 
-    ['aisub-text-color', 'aisub-text-opacity', 'aisub-bg-color', 'aisub-bg-opacity'].forEach(id => {
-        document.getElementById(id).addEventListener('input', updateStyles);
-    });
+    ['aisub-text-color', 'aisub-text-opacity', 'aisub-bg-color', 'aisub-bg-opacity',
+        'aisub-learned-success-color', 'aisub-learned-progress-color'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateStyles);
+        });
 
     // Load saved settings
     chrome.storage.local.get('subSettings', (res) => {
@@ -250,6 +351,14 @@ function initSettings(container) {
             document.getElementById('aisub-text-opacity').value = res.subSettings.textOpacity;
             document.getElementById('aisub-bg-color').value = res.subSettings.bgColor;
             document.getElementById('aisub-bg-opacity').value = res.subSettings.bgOpacity;
+
+            if (res.subSettings.learnedSuccessColor) {
+                document.getElementById('aisub-learned-success-color').value = res.subSettings.learnedSuccessColor;
+            }
+            if (res.subSettings.learnedProgressColor) {
+                document.getElementById('aisub-learned-progress-color').value = res.subSettings.learnedProgressColor;
+            }
+
             updateStyles();
         }
     });

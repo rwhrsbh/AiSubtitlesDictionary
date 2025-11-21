@@ -172,3 +172,62 @@ waitForElement('.ytp-right-controls', (controls) => {
         controls.insertBefore(btn, controls.firstChild);
     }
 });
+
+// Monitor URL changes (YouTube SPA navigation)
+let lastVideoId = null;
+
+function getVideoId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('v');
+}
+
+function onUrlChange() {
+    const currentVideoId = getVideoId();
+
+    // Check if video changed
+    if (lastVideoId && currentVideoId !== lastVideoId) {
+        console.log('[AI Subtitles] Video changed, resetting subtitles...');
+
+        // Clear captured subtitle URL
+        capturedSubtitleUrl = null;
+
+        // Stop and clear current subtitles
+        if (window.stopRenderingSubtitles) {
+            window.stopRenderingSubtitles();
+        }
+
+        // If AI subtitles were active, try to load new ones
+        if (isAiSubtitlesActive) {
+            // Reset the button state and reactivate
+            console.log('[AI Subtitles] Reactivating for new video...');
+            const btn = document.querySelector('.aisub-toggle-btn');
+            if (btn) {
+                // Temporarily deactivate
+                isAiSubtitlesActive = false;
+                // Then reactivate to trigger subtitle loading
+                setTimeout(() => {
+                    toggleAiSubtitles();
+                }, 5000); // Give YouTube time to load
+            }
+        }
+    }
+
+    lastVideoId = currentVideoId;
+}
+
+// Initialize
+lastVideoId = getVideoId();
+
+// Watch for URL changes using both popstate and YouTube's navigation events
+window.addEventListener('popstate', onUrlChange);
+window.addEventListener('yt-navigate-finish', onUrlChange);
+
+// Also use MutationObserver on URL as fallback
+let lastUrl = location.href;
+new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+        lastUrl = url;
+        onUrlChange();
+    }
+}).observe(document, { subtree: true, childList: true });

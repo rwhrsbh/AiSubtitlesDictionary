@@ -1,17 +1,45 @@
 import { StorageService } from '../services/storage.js';
+import { I18nService } from '../services/i18n.js';
 
 const storage = new StorageService();
+const i18n = new I18nService();
 let currentReviewWords = [];
 let currentWordIndex = 0;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    await i18n.init();
+    localizeHtml();
     loadReviewSession();
     document.getElementById('close-btn').addEventListener('click', () => window.close());
 });
 
+function localizeHtml() {
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        const message = i18n.getMessage(key);
+        if (message) {
+            element.textContent = message;
+        }
+    });
+}
+
 async function loadReviewSession() {
-    currentReviewWords = await storage.getWordsToReview();
-    document.getElementById('words-count').textContent = `${currentReviewWords.length} words to review`;
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+
+    if (mode === 'all') {
+        const allWords = await storage.getLearningList();
+        // Shuffle for better experience
+        currentReviewWords = allWords.sort(() => Math.random() - 0.5);
+    } else if (mode === 'problem') {
+        const problemWords = await storage.getProblemWords();
+        // Shuffle
+        currentReviewWords = problemWords.sort(() => Math.random() - 0.5);
+    } else {
+        currentReviewWords = await storage.getWordsToReview();
+    }
+    const wordsToReviewText = i18n.getMessage('words_to_review');
+    document.getElementById('words-count').textContent = `${currentReviewWords.length} ${wordsToReviewText}`;
 
     if (currentReviewWords.length === 0) {
         document.getElementById('quiz-container').classList.add('hidden');
@@ -25,7 +53,9 @@ async function loadReviewSession() {
 
 function showNextCard() {
     if (currentWordIndex >= currentReviewWords.length) {
-        document.getElementById('quiz-container').innerHTML = '<div class="card"><h2>Session Complete!</h2><p>Great job!</p></div>';
+        const completeTitle = i18n.getMessage('review_complete_title');
+        const completeMsg = i18n.getMessage('review_complete_msg');
+        document.getElementById('quiz-container').innerHTML = `<div class="card"><h2>${completeTitle}</h2><p>${completeMsg}</p></div>`;
         setTimeout(() => window.close(), 3000);
         return;
     }

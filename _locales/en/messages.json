@@ -1,0 +1,266 @@
+{
+    "extName": {
+        "message": "AI Subtitles Dictionary",
+        "description": "Extension name"
+    },
+    "extDescription": {
+        "message": "Learn languages with AI-powered subtitles and flashcards",
+        "description": "Extension description"
+    },
+    "popup_title": {
+        "message": "AI Subtitles Dictionary"
+    },
+    "tab_review": {
+        "message": "Review"
+    },
+    "tab_words": {
+        "message": "Words"
+    },
+    "tab_history": {
+        "message": "History"
+    },
+    "tab_settings": {
+        "message": "Settings"
+    },
+    "words_to_review": {
+        "message": "words to review"
+    },
+    "all_caught_up": {
+        "message": "All caught up! 🎉"
+    },
+    "start_review": {
+        "message": "Start Review Session"
+    },
+    "practice_flashcards": {
+        "message": "📚 Practice Flashcards"
+    },
+    "definition_cards": {
+        "message": "📖 Definition Cards"
+    },
+    "search_words": {
+        "message": "Search words...",
+        "description": "Placeholder for search input"
+    },
+    "category_all": {
+        "message": "All Categories"
+    },
+    "category_default": {
+        "message": "Default"
+    },
+    "manage_categories": {
+        "message": "Manage Categories"
+    },
+    "learn_button": {
+        "message": "Learn"
+    },
+    "delete_button": {
+        "message": "Delete"
+    },
+    "correct": {
+        "message": "Correct"
+    },
+    "wrong": {
+        "message": "Wrong"
+    },
+    "no_history": {
+        "message": "No history yet. Start learning!"
+    },
+    "settings_api_key": {
+        "message": "Gemini API Key"
+    },
+    "settings_api_key_placeholder": {
+        "message": "Enter your API key"
+    },
+    "settings_get_key": {
+        "message": "Get API Key"
+    },
+    "settings_model": {
+        "message": "Gemini Model"
+    },
+    "settings_model_loading": {
+        "message": "Loading models..."
+    },
+    "settings_flashcards_history": {
+        "message": "Include History words in Flashcards"
+    },
+    "settings_language": {
+        "message": "Interface & AI Language"
+    },
+    "settings_save": {
+        "message": "Save Settings"
+    },
+    "settings_saved": {
+        "message": "✅ Saved!"
+    },
+    "popup_transcription": {
+        "message": "Trans:"
+    },
+    "popup_translation": {
+        "message": "Translation:"
+    },
+    "popup_progress": {
+        "message": "📊 Progress:"
+    },
+    "popup_close": {
+        "message": "Close"
+    },
+    "flashcards_title": {
+        "message": "Flashcards"
+    },
+    "flashcards_loading": {
+        "message": "Loading flashcards..."
+    },
+    "flashcards_hint": {
+        "message": "Hint"
+    },
+    "flashcards_check": {
+        "message": "Check Answer"
+    },
+    "flashcards_next": {
+        "message": "Next Card"
+    },
+    "flashcards_correct": {
+        "message": "Correct! ✓"
+    },
+    "flashcards_wrong": {
+        "message": "Wrong ✗"
+    },
+    "flashcards_complete": {
+        "message": "Great Job!"
+    },
+    "flashcards_reviewed_all": {
+        "message": "You've reviewed all cards!"
+    },
+    "flashcards_start_over": {
+        "message": "Start Over"
+    },
+    "flashcards_close": {
+        "message": "Close"
+    },
+    "def_cards_title": {
+        "message": "Definition Cards"
+    },
+    "def_cards_loading": {
+        "message": "Generating cards with AI..."
+    },
+    "def_cards_wait": {
+        "message": "This may take a moment"
+    },
+    "def_cards_flip_hint": {
+        "message": "Click card to flip 🔄"
+    },
+    "def_cards_prev": {
+        "message": "← Previous"
+    },
+    "def_cards_next": {
+        "message": "Next →"
+    },
+    "def_cards_finish": {
+        "message": "Finish"
+    },
+    "def_cards_complete": {
+        "message": "Great Job!"
+    },
+    "def_cards_reviewed_all": {
+        "message": "You've reviewed all words!"
+    },
+    "error_api_key": {
+        "message": "API Key not set. Please configure in extension settings."
+    },
+    "error_no_words": {
+        "message": "No words available. Add some words first!"
+    },
+    "error_unknown": {
+        "message": "An error occurred"
+    },
+    "error_try_again": {
+        "message": "Retry"
+    },
+    "quiz_translation": {
+        "message": "Translation Quiz"
+    },
+    "quiz_transcription": {
+        "message": "Transcription Quiz"
+    },
+    "flashcards_settings": {
+        "message": "Flashcards Settings"
+    },
+    "quiz_settings": {
+        "message": "Quiz Settings"
+    },
+    "total_words": {
+        "message": "Total Words:"
+    },
+    "total_history": {
+        "message": "Total History:"
+    },
+    "no_words_yet": {
+        "message": "No words yet. Go to YouTube and click on subtitles to add words!"
+    },
+    "notification_review_title": {
+        "message": "Time to Review!"
+    },
+    "notification_review_message": {
+        "message": "You have %n words to review. Click to practice!"
+    },
+    "review_title": {
+        "message": "Review Session"
+    },
+    "review_all_caught_up": {
+        "message": "All caught up!"
+    },
+    "review_no_words": {
+        "message": "You have no words to review right now."
+    },
+    "review_complete_title": {
+        "message": "Session Complete!"
+    },
+    "review_complete_msg": {
+        "message": "Great job!"
+    },
+    "loading": {
+        "message": "Loading..."
+    },
+    "popup_loading_explanation": {
+        "message": "Loading explanation..."
+    },
+    "popup_learn_btn": {
+        "message": "Learn"
+    },
+    "popup_added_to_category": {
+        "message": "Added to category"
+    },
+    "category_new": {
+        "message": "+ New Category"
+    },
+    "error_prefix": {
+        "message": "Error:"
+    },
+    "settings_title": {
+        "message": "Subtitle Settings"
+    },
+    "settings_text_color": {
+        "message": "Text Color"
+    },
+    "settings_text_opacity": {
+        "message": "Text Opacity"
+    },
+    "settings_bg_color": {
+        "message": "Background Color"
+    },
+    "settings_bg_opacity": {
+        "message": "Background Opacity"
+    },
+    "settings_learned_words": {
+        "message": "Learned Words"
+    },
+    "settings_success_color": {
+        "message": "Success Color (70%+)"
+    },
+    "settings_progress_color": {
+        "message": "Progress Color (<70%)"
+    },
+    "no_explanation": {
+        "message": "No explanation available."
+    }
+}

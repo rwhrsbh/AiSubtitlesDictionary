@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Definition Cards - AI Subtitles</title>
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Definition Cards - AI Subtitles</title>
+        <link rel="stylesheet" href="definition-cards.css">
+    </head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 data-i18n="def_cards_title">Definition Cards</h1>
+            <div class="progress">
+                <span id="current-card">0</span> / <span id="total-cards">0</span>
+            </div>
+        </div>
+
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-spinner"></div>
+            <p data-i18n="def_cards_loading">Generating cards with AI...</p>
+            <p class="loading-subtext" data-i18n="def_cards_wait">This may take a moment</p>
+        </div>
+
+        <div id="card-container" class="card-container hidden">
+            <div class="card" id="definition-card">
+                <div class="card-inner">
+                    <!-- Front (English) -->
+                    <div class="card-face card-front">
+                        <div class="language-badge">EN</div>
+                        <div class="card-header">
+                            <h2 id="card-word-en" class="card-word">word</h2>
+                            <div id="card-transcription" class="card-transcription">/wɜːrd/</div>
+                        </div>
+                        <div id="definitions-container-en" class="definitions-container">
+                            <!-- English definitions will be injected here -->
+                        </div>
+                        <div class="flip-hint" data-i18n="def_cards_flip_hint">Click card to flip 🔄</div>
+                    </div>
+
+                    <!-- Back (Russian) -->
+                    <div class="card-face card-back">
+                        <div class="language-badge">RU</div>
+                        <div class="card-header">
+                            <h2 id="card-word-ru" class="card-word">слово</h2>
+                            <div id="card-transcription-ru" class="card-transcription">/wɜːrd/</div>
+                        </div>
+                        <div id="definitions-container-ru" class="definitions-container">
+                            <!-- Russian definitions will be injected here -->
+                        </div>
+                        <div class="flip-hint" data-i18n="def_cards_flip_hint">Нажмите, чтобы перевернуть 🔄</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="prev-btn" class="control-btn" data-i18n="def_cards_prev">← Previous</button>
+                <button id="next-btn" class="control-btn primary" data-i18n="def_cards_next">Next →</button>
+            </div>
+        </div>
+
+        <div id="error-screen" class="error-screen hidden">
+            <div class="error-icon">⚠️</div>
+            <h2>Error</h2>
+            <p id="error-message" data-i18n="error_unknown">Something went wrong</p>
+            <button id="retry-btn" class="control-btn primary" data-i18n="error_try_again">Retry</button>
+        </div>
+
+        <div id="complete-screen" class="complete-screen hidden">
+            <div class="complete-icon">🎉</div>
+            <h2 data-i18n="def_cards_complete">Great Job!</h2>
+            <p data-i18n="def_cards_reviewed_all">You've reviewed all words!</p>
+            <button id="restart-btn" class="control-btn primary" data-i18n="flashcards_start_over">Start Over</button>
+            <button id="close-btn" class="control-btn" data-i18n="flashcards_close">Close</button>
+        </div>
+    </div>
+
+    <script src="definition-cards.js" type="module"></script>
+</body>
+
+</html>

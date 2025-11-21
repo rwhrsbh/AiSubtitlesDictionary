@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "AI Subtitles Dictionary",
+  "name": "__MSG_extName__",
   "version": "1.0",
-  "description": "Integrate AI-powered subtitles into YouTube with learning features.",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
   "permissions": [
     "storage",
     "activeTab",
     "scripting",
     "notifications",
-    "alarms"
+    "alarms",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
@@ -24,6 +26,7 @@
         "*://www.youtube.com/*"
       ],
       "js": [
+        "src/content/i18n_lib.js",
         "src/content/youtube_injector.js",
         "src/content/subtitle_renderer.js",
         "src/content/word_popup.js"
@@ -37,21 +40,22 @@
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "src/assets/icon16.png",
-      "48": "src/assets/icon48.png",
-      "128": "src/assets/icon128.png"
+      "16": "src/assets/icon.png",
+      "48": "src/assets/icon.png",
+      "128": "src/assets/icon.png"
     }
   },
   "icons": {
-    "16": "src/assets/icon16.png",
-    "48": "src/assets/icon48.png",
-    "128": "src/assets/icon128.png"
+    "16": "src/assets/icon.png",
+    "48": "src/assets/icon.png",
+    "128": "src/assets/icon.png"
   },
   "web_accessible_resources": [
     {
       "resources": [
         "src/content/network_interceptor.js",
-        "src/review/review.html"
+        "src/review/review.html",
+        "src/definition-cards/definition-cards.html"
       ],
       "matches": [
         "*://www.youtube.com/*",

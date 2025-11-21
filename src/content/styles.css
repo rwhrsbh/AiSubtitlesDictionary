@@ -106,12 +106,10 @@
 @keyframes aisub-fade-in {
     from {
         opacity: 0;
-        transform: translateY(10px);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
@@ -167,6 +165,29 @@
 .aisub-popup-actions {
     display: flex;
     gap: 12px;
+}
+
+.aisub-category-select {
+    background: #334155;
+    color: #f8fafc;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.aisub-category-select:hover {
+    background: #475569;
+    border-color: #60a5fa;
+}
+
+.aisub-category-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .aisub-btn {
@@ -317,4 +338,32 @@
 .aisub-settings-btn:hover {
     background: #3b82f6;
     transform: scale(1.1);
+}
+
+/* Learned Words Highlighting */
+.aisub-word.learned {
+    border-bottom: 2px solid;
+    font-weight: 600;
+}
+
+/* Success - mostly correct answers */
+.aisub-word.learned-success {
+    color: var(--learned-success-color, #22c55e) !important;
+    border-bottom-color: var(--learned-success-color, #22c55e);
+}
+
+/* Progress - some wrong answers */
+.aisub-word.learned-progress {
+    color: var(--learned-progress-color, #f59e0b) !important;
+    border-bottom-color: var(--learned-progress-color, #f59e0b);
+}
+
+/* Not started - added but not reviewed yet */
+.aisub-word.learned-not-started {
+    border-bottom-style: dashed;
+    opacity: 0.9;
+}
+
+.aisub-word.learned:hover {
+    text-shadow: 0 0 8px currentColor;
 }

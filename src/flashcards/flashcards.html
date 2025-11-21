@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Flashcards - AI Subtitles</title>
+    <link rel="stylesheet" href="flashcards.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 data-i18n="flashcards_title">Flashcards Exercise</h1>
+            <div class="progress">
+                <span id="current-card">0</span> / <span id="total-cards">0</span>
+            </div>
+        </div>
+
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-spinner"></div>
+            <p data-i18n="flashcards_loading">Generating exercises with AI...</p>
+            <p class="loading-subtext" data-i18n="def_cards_wait">This may take a moment</p>
+        </div>
+
+        <div id="card-container" class="card-container hidden">
+            <div class="card" id="flashcard">
+                <div class="card-inner">
+                    <div class="card-face card-front">
+                        <div class="language-badge" id="front-lang">EN</div>
+                        <div class="card-content">
+                            <p class="sentence" id="front-sentence">Click to flip</p>
+                            <div class="options" id="front-options">
+                                <!-- Options will be injected here -->
+                            </div>
+                            <button id="front-hint-btn" class="hint-btn hidden" data-i18n="flashcards_hint">💡
+                                Hint</button>
+                        </div>
+                        <div class="hint" data-i18n="flashcards_hint">Click option or flip card</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="language-badge" id="back-lang">RU</div>
+                        <div class="card-content">
+                            <p class="sentence" id="back-sentence">Нажмите чтобы перевернуть</p>
+                            <div class="options" id="back-options">
+                                <!-- Options will be injected here -->
+                            </div>
+                            <button id="back-hint-btn" class="hint-btn hidden" data-i18n="flashcards_hint">💡
+                                Подсказка</button>
+                        </div>
+                        <div class="hint" data-i18n="flashcards_hint">Click option or flip card</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback and Explanation -->
+            <div id="feedback-message" class="feedback-message hidden"></div>
+            <div id="explanation-section" class="explanation-section hidden">
+                <h3>📚 Explanation</h3>
+                <p id="explanation-text"></p>
+            </div>
+
+            <div class="controls">
+                <button id="prev-btn" class="control-btn" data-i18n="def_cards_prev">← Previous</button>
+                <button id="next-btn" class="control-btn primary" data-i18n="def_cards_next">Next →</button>
+            </div>
+        </div>
+
+        <div id="error-screen" class="error-screen hidden">
+            <div class="error-icon">⚠️</div>
+            <h2>Error</h2>
+            <p id="error-message" data-i18n="error_unknown">Something went wrong</p>
+            <button id="retry-btn" class="control-btn primary" data-i18n="error_try_again">Retry</button>
+        </div>
+
+        <div id="complete-screen" class="complete-screen hidden">
+            <div class="complete-icon">🎉</div>
+            <h2 data-i18n="flashcards_complete">Great Job!</h2>
+            <p data-i18n="flashcards_reviewed_all">You've completed all flashcards!</p>
+            <button id="restart-btn" class="control-btn primary" data-i18n="flashcards_start_over">Start Over</button>
+            <button id="close-btn" class="control-btn" data-i18n="flashcards_close">Close</button>
+        </div>
+    </div>
+
+    <script src="flashcards.js" type="module"></script>
+</body>
+
+</html>

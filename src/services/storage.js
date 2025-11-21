@@ -30,10 +30,48 @@ export class StorageService {
                 nextReview: Date.now(), // Review immediately/soon
                 level: 0, // SRS level
                 correctCount: 0,
-                wrongCount: 0
+                wrongCount: 0,
+                category: wordData.category || 'default' // Add category support
             });
             await chrome.storage.local.set({ learningList: list });
         }
+    }
+
+    // Category Management
+    async getCategories() {
+        const result = await chrome.storage.local.get('categories');
+        return result.categories || ['default'];
+    }
+
+    async addCategory(categoryName) {
+        const categories = await this.getCategories();
+        if (!categories.includes(categoryName)) {
+            categories.push(categoryName);
+            await chrome.storage.local.set({ categories });
+        }
+    }
+
+    async deleteCategory(categoryName) {
+        if (categoryName === 'default') return; // Cannot delete default
+
+        const categories = await this.getCategories();
+        const updated = categories.filter(c => c !== categoryName);
+        await chrome.storage.local.set({ categories: updated });
+
+        // Move words from deleted category to 'default'
+        const list = await this.getLearningList();
+        const updatedList = list.map(w => {
+            if (w.category === categoryName) {
+                w.category = 'default';
+            }
+            return w;
+        });
+        await chrome.storage.local.set({ learningList: updatedList });
+    }
+
+    async getWordsByCategory(category) {
+        const list = await this.getLearningList();
+        return list.filter(w => w.category === category || (!w.category && category === 'default'));
     }
 
     async getWordsToReview() {
@@ -67,5 +105,72 @@ export class StorageService {
         });
 
         await chrome.storage.local.set({ learningList: list });
+    }
+
+    async getProblemWords() {
+        const list = await this.getLearningList();
+        return list.filter(w => (w.wrongCount || 0) > 0);
+    }
+
+    async exportData() {
+        const data = await chrome.storage.local.get(null);
+        // Exclude API keys for security
+        const exportObj = { ...data };
+        delete exportObj.GEMINI_API_KEY;
+        delete exportObj.apiKey;
+        return JSON.stringify(exportObj, null, 2);
+    }
+
+    async importData(jsonString) {
+        try {
+            const data = JSON.parse(jsonString);
+            const currentData = await chrome.storage.local.get(null);
+
+            // Merge Learning List
+            const currentList = currentData.learningList || [];
+            const importedList = (data.learningList || []).filter(w => w && w.word); // Filter invalid items first
+
+            const newWords = importedList.filter(importedWord =>
+                !currentList.some(currentWord =>
+                    currentWord && currentWord.word &&
+                    currentWord.word.toLowerCase() === importedWord.word.toLowerCase()
+                )
+            );
+            const mergedList = [...currentList, ...newWords];
+
+            // Merge History
+            const currentHistory = currentData.wordHistory || [];
+            const importedHistory = (data.wordHistory || []).filter(w => w && w.word); // Filter invalid items first
+
+            const newHistory = importedHistory.filter(importedWord =>
+                !currentHistory.some(currentWord =>
+                    currentWord && currentWord.word &&
+                    currentWord.word.toLowerCase() === importedWord.word.toLowerCase()
+                )
+            );
+            const mergedHistory = [...currentHistory, ...newHistory];
+
+            // Merge Categories
+            const currentCategories = currentData.categories || ['default'];
+            const importedCategories = data.categories || [];
+            const mergedCategories = [...new Set([...currentCategories, ...importedCategories])];
+
+            // Prepare updates
+            const updates = {
+                learningList: mergedList,
+                wordHistory: mergedHistory,
+                categories: mergedCategories,
+                // Settings - overwrite if present in import, else keep current
+                appLanguage: data.appLanguage || currentData.appLanguage,
+                geminiModel: data.geminiModel || currentData.geminiModel,
+                flashcardsIncludeHistory: data.flashcardsIncludeHistory !== undefined ? data.flashcardsIncludeHistory : currentData.flashcardsIncludeHistory
+            };
+
+            await chrome.storage.local.set(updates);
+            return { success: true, addedWords: newWords.length, addedHistory: newHistory.length };
+        } catch (e) {
+            console.error('Import error:', e);
+            return { success: false, error: e.message };
+        }
     }
 }

@@ -1,0 +1,263 @@
+{
+    "extName": {
+        "message": "AI Словарь Субтитров"
+    },
+    "extDescription": {
+        "message": "Изучайте языки с помощью AI субтитров и флеш-карточек"
+    },
+    "popup_title": {
+        "message": "AI Словарь Субтитров"
+    },
+    "tab_review": {
+        "message": "Повтор"
+    },
+    "tab_words": {
+        "message": "Слова"
+    },
+    "tab_history": {
+        "message": "История"
+    },
+    "tab_settings": {
+        "message": "Настройки"
+    },
+    "words_to_review": {
+        "message": "слов для повторения"
+    },
+    "all_caught_up": {
+        "message": "Всё выучено! 🎉"
+    },
+    "start_review": {
+        "message": "Начать Повторение"
+    },
+    "practice_flashcards": {
+        "message": "📚 Флеш-карточки"
+    },
+    "definition_cards": {
+        "message": "📖 Карточки Определений"
+    },
+    "search_words": {
+        "message": "Поиск слов..."
+    },
+    "category_all": {
+        "message": "Все Категории"
+    },
+    "category_default": {
+        "message": "По умолчанию"
+    },
+    "manage_categories": {
+        "message": "Управление Категориями"
+    },
+    "learn_button": {
+        "message": "Учить"
+    },
+    "delete_button": {
+        "message": "Удалить"
+    },
+    "correct": {
+        "message": "Правильно"
+    },
+    "wrong": {
+        "message": "Ошибки"
+    },
+    "no_history": {
+        "message": "История пуста. Начните учиться!"
+    },
+    "settings_api_key": {
+        "message": "Gemini API Ключ"
+    },
+    "settings_api_key_placeholder": {
+        "message": "Введите ваш API ключ"
+    },
+    "settings_get_key": {
+        "message": "Получить API Ключ"
+    },
+    "settings_model": {
+        "message": "Модель Gemini"
+    },
+    "settings_model_loading": {
+        "message": "Загрузка моделей..."
+    },
+    "settings_flashcards_history": {
+        "message": "Включать слова из истории"
+    },
+    "settings_language": {
+        "message": "Язык Интерфейса и AI"
+    },
+    "settings_save": {
+        "message": "Сохранить Настройки"
+    },
+    "settings_saved": {
+        "message": "✅ Сохранено!"
+    },
+    "popup_transcription": {
+        "message": "Транскр:"
+    },
+    "popup_translation": {
+        "message": "Перевод:"
+    },
+    "popup_progress": {
+        "message": "📊 Прогресс:"
+    },
+    "popup_close": {
+        "message": "Закрыть"
+    },
+    "flashcards_title": {
+        "message": "Флеш-карточки"
+    },
+    "flashcards_loading": {
+        "message": "Загрузка карточек..."
+    },
+    "flashcards_hint": {
+        "message": "Подсказка"
+    },
+    "flashcards_check": {
+        "message": "Проверить Ответ"
+    },
+    "flashcards_next": {
+        "message": "Следующая Карточка"
+    },
+    "flashcards_correct": {
+        "message": "Правильно! ✓"
+    },
+    "flashcards_wrong": {
+        "message": "Неправильно ✗"
+    },
+    "flashcards_complete": {
+        "message": "Отличная Работа!"
+    },
+    "flashcards_reviewed_all": {
+        "message": "Вы повторили все карточки!"
+    },
+    "flashcards_start_over": {
+        "message": "Начать Сначала"
+    },
+    "flashcards_close": {
+        "message": "Закрыть"
+    },
+    "def_cards_title": {
+        "message": "Карточки Определений"
+    },
+    "def_cards_loading": {
+        "message": "Генерация карточек с помощью AI..."
+    },
+    "def_cards_wait": {
+        "message": "Это может занять некоторое время"
+    },
+    "def_cards_flip_hint": {
+        "message": "Нажмите, чтобы перевернуть 🔄"
+    },
+    "def_cards_prev": {
+        "message": "← Назад"
+    },
+    "def_cards_next": {
+        "message": "Далее →"
+    },
+    "def_cards_finish": {
+        "message": "Завершить"
+    },
+    "def_cards_complete": {
+        "message": "Отличная Работа!"
+    },
+    "def_cards_reviewed_all": {
+        "message": "Вы повторили все слова!"
+    },
+    "error_api_key": {
+        "message": "API ключ не установлен. Пожалуйста, настройте в настройках расширения."
+    },
+    "error_no_words": {
+        "message": "Нет доступных слов. Сначала добавьте слова!"
+    },
+    "error_unknown": {
+        "message": "Произошла ошибка"
+    },
+    "error_try_again": {
+        "message": "Повторить"
+    },
+    "quiz_translation": {
+        "message": "Тест на перевод"
+    },
+    "quiz_transcription": {
+        "message": "Тест на транскрипцию"
+    },
+    "flashcards_settings": {
+        "message": "Настройки Флеш-карточек"
+    },
+    "quiz_settings": {
+        "message": "Настройки Тестов"
+    },
+    "total_words": {
+        "message": "Всего слов:"
+    },
+    "total_history": {
+        "message": "Всего в истории:"
+    },
+    "no_words_yet": {
+        "message": "Слов пока нет. Перейдите на YouTube и кликните по субтитрам, чтобы добавить слова!"
+    },
+    "notification_review_title": {
+        "message": "Время повторить слова!"
+    },
+    "notification_review_message": {
+        "message": "У вас %n слов для повторения. Нажмите, чтобы начать!"
+    },
+    "review_title": {
+        "message": "Сессия повторения"
+    },
+    "review_all_caught_up": {
+        "message": "Всё повторили!"
+    },
+    "review_no_words": {
+        "message": "Сейчас нет слов для повторения."
+    },
+    "review_complete_title": {
+        "message": "Сессия завершена!"
+    },
+    "review_complete_msg": {
+        "message": "Отличная работа!"
+    },
+    "loading": {
+        "message": "Загрузка..."
+    },
+    "popup_loading_explanation": {
+        "message": "Загрузка объяснения..."
+    },
+    "popup_learn_btn": {
+        "message": "Учить"
+    },
+    "popup_added_to_category": {
+        "message": "Добавлено в категорию"
+    },
+    "category_new": {
+        "message": "+ Новая категория"
+    },
+    "error_prefix": {
+        "message": "Ошибка:"
+    },
+    "settings_title": {
+        "message": "Настройки субтитров"
+    },
+    "settings_text_color": {
+        "message": "Цвет текста"
+    },
+    "settings_text_opacity": {
+        "message": "Прозрачность текста"
+    },
+    "settings_bg_color": {
+        "message": "Цвет фона"
+    },
+    "settings_bg_opacity": {
+        "message": "Прозрачность фона"
+    },
+    "settings_learned_words": {
+        "message": "Изученные слова"
+    },
+    "settings_success_color": {
+        "message": "Цвет успеха (70%+)"
+    },
+    "settings_progress_color": {
+        "message": "Цвет прогресса (<70%)"
+    },
+    "no_explanation": {
+        "message": "Объяснение недоступно."
+    }
+}

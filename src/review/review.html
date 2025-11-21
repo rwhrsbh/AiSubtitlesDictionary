@@ -10,7 +10,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Review Session</h1>
+            <h1 data-i18n="review_title">Review Session</h1>
             <div class="stats">
                 <span id="words-count">0 words to review</span>
             </div>
@@ -18,7 +18,7 @@
 
         <div id="quiz-container">
             <div class="card">
-                <div class="word-display" id="q-word">Loading...</div>
+                <div class="word-display" id="q-word" data-i18n="loading">Loading...</div>
 
                 <div id="options-area" class="options-grid">
                     <!-- Options injected here -->
@@ -27,9 +27,9 @@
         </div>
 
         <div id="no-review" class="hidden empty-state">
-            <h2>All caught up!</h2>
-            <p>You have no words to review right now.</p>
-            <button id="close-btn">Close</button>
+            <h2 data-i18n="review_all_caught_up">All caught up!</h2>
+            <p data-i18n="review_no_words">You have no words to review right now.</p>
+            <button id="close-btn" data-i18n="flashcards_close">Close</button>
         </div>
 
         <!-- Hidden speech area - not used anymore -->
