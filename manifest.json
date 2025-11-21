@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "AI Subtitles Dictionary",
+  "version": "1.0",
+  "description": "Integrate AI-powered subtitles into YouTube with learning features.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://generativelanguage.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/youtube_injector.js",
+        "src/content/subtitle_renderer.js",
+        "src/content/word_popup.js"
+      ],
+      "css": [
+        "src/content/styles.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "src/assets/icon16.png",
+      "48": "src/assets/icon48.png",
+      "128": "src/assets/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "src/assets/icon16.png",
+    "48": "src/assets/icon48.png",
+    "128": "src/assets/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/network_interceptor.js",
+        "src/review/review.html"
+      ],
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://*/*"
+      ]
+    }
+  ]
+}

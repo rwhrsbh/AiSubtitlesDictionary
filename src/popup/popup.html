@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>AI Subtitles</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="header">AI Subtitles Dictionary</div>
+    <div class="tabs">
+        <div class="tab active" data-tab="review">Review</div>
+        <div class="tab" data-tab="words">Words</div>
+        <div class="tab" data-tab="history">History</div>
+        <div class="tab" data-tab="settings">Settings</div>
+    </div>
+
+    <!-- Review Tab -->
+    <div id="review-tab" class="content">
+        <div class="review-summary">
+            <p id="words-count">0 words to review</p>
+            <button id="start-review-btn" class="primary-btn">Start Review Session</button>
+        </div>
+        <div id="no-review" class="hidden" style="text-align:center; color:#888;">
+            All caught up! 🎉
+        </div>
+    </div>
+
+    <!-- Words Tab -->
+    <div id="words-tab" class="content hidden">
+        <div class="words-header">
+            <input type="text" id="word-search" placeholder="Search words...">
+            <div id="word-stats">Total: <span id="total-words">0</span> words</div>
+        </div>
+        <div id="words-list" class="words-list">
+            <!-- Words injected here -->
+        </div>
+        <div id="no-words" class="hidden" style="text-align:center; color:#888;">
+            No words yet. Click on words in YouTube subtitles to add them!
+        </div>
+    </div>
+
+    <!-- History Tab -->
+    <div id="history-tab" class="content hidden">
+        <div class="words-header">
+            <input type="text" id="history-search" placeholder="Search history...">
+            <div id="history-stats">Total: <span id="total-history">0</span> viewed</div>
+        </div>
+        <div id="history-list" class="words-list">
+            <!-- History words injected here -->
+        </div>
+        <div id="no-history" class="hidden" style="text-align:center; color:#888;">
+            No history yet. Click on words in YouTube subtitles!
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="content hidden">
+        <div class="form-group">
+            <label>Gemini API Key</label>
+            <input type="password" id="api-key" placeholder="Enter your API Key">
+        </div>
+
+        <div class="form-group">
+            <label>Gemini Model</label>
+            <select id="gemini-model">
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Quiz Types</label>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="quiz-translation" checked>
+                    Translation Quiz
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="quiz-transcription" checked>
+                    Transcription Quiz
+                </label>
+            </div>
+        </div>
+
+        <div class="save-container">
+            <button id="save-settings" class="primary-btn">Save Settings</button>
+        </div>
+        <p style="font-size:12px; color:#666; margin-top:10px;">
+            Get your key from <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>.
+        </p>
+    </div>
+
+    <script src="popup.js" type="module"></script>
+</body>
+
+</html>

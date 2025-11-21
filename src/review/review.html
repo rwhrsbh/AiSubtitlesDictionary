@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>AI Subtitles - Review</title>
+    <link rel="stylesheet" href="review.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Review Session</h1>
+            <div class="stats">
+                <span id="words-count">0 words to review</span>
+            </div>
+        </div>
+
+        <div id="quiz-container">
+            <div class="card">
+                <div class="word-display" id="q-word">Loading...</div>
+
+                <div id="options-area" class="options-grid">
+                    <!-- Options injected here -->
+                </div>
+            </div>
+        </div>
+
+        <div id="no-review" class="hidden empty-state">
+            <h2>All caught up!</h2>
+            <p>You have no words to review right now.</p>
+            <button id="close-btn">Close</button>
+        </div>
+
+        <!-- Hidden speech area - not used anymore -->
+        <div id="speech-area" class="hidden"></div>
+    </div>
+    <script src="review.js" type="module"></script>
+</body>
+
+</html>
