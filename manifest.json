@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "1.0",
+  "version": "1.1",
   "default_locale": "en",
   "description": "__MSG_extDescription__",
   "permissions": [
@@ -55,7 +55,8 @@
       "resources": [
         "src/content/network_interceptor.js",
         "src/review/review.html",
-        "src/definition-cards/definition-cards.html"
+        "src/definition-cards/definition-cards.html",
+        "src/services/translations.js"
       ],
       "matches": [
         "*://www.youtube.com/*",

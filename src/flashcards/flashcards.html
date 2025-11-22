@@ -16,6 +16,11 @@
             </div>
         </div>
 
+        <!-- Progress Indicator Sidebar -->
+        <div class="progress-sidebar" id="progress-sidebar">
+            <!-- Progress boxes will be injected here -->
+        </div>
+
         <div id="loading-screen" class="loading-screen">
             <div class="loading-spinner"></div>
             <p data-i18n="flashcards_loading">Generating exercises with AI...</p>
@@ -29,25 +34,47 @@
                         <div class="language-badge" id="front-lang">EN</div>
                         <div class="card-content">
                             <p class="sentence" id="front-sentence">Click to flip</p>
-                            <div class="options" id="front-options">
+                            <div class="mode-controls">
+                                <button class="mode-btn" data-mode="options" data-side="front"
+                                    data-i18n="mode_options">Options</button>
+                                <button class="mode-btn active" data-mode="manual" data-side="front"
+                                    data-i18n="mode_manual">Manual</button>
+                            </div>
+                            <div class="input-area" id="front-input-area">
+                                <input type="text" id="front-input" class="manual-input"
+                                    data-i18n-placeholder="input_placeholder" placeholder="Type answer...">
+                                <button id="front-submit" class="submit-btn" data-i18n="btn_check">Check</button>
+                            </div>
+                            <div class="options hidden" id="front-options">
                                 <!-- Options will be injected here -->
                             </div>
                             <button id="front-hint-btn" class="hint-btn hidden" data-i18n="flashcards_hint">💡
                                 Hint</button>
                         </div>
-                        <div class="hint" data-i18n="flashcards_hint">Click option or flip card</div>
+                        <div class="hint" data-i18n="flashcards_flip_instruction">Click option or flip card</div>
                     </div>
                     <div class="card-face card-back">
                         <div class="language-badge" id="back-lang">RU</div>
                         <div class="card-content">
                             <p class="sentence" id="back-sentence">Нажмите чтобы перевернуть</p>
-                            <div class="options" id="back-options">
+                            <div class="mode-controls">
+                                <button class="mode-btn" data-mode="options" data-side="back"
+                                    data-i18n="mode_options">Варианты</button>
+                                <button class="mode-btn active" data-mode="manual" data-side="back"
+                                    data-i18n="mode_manual">Ввод</button>
+                            </div>
+                            <div class="input-area" id="back-input-area">
+                                <input type="text" id="back-input" class="manual-input"
+                                    data-i18n-placeholder="input_placeholder" placeholder="Введите ответ...">
+                                <button id="back-submit" class="submit-btn" data-i18n="btn_check">Проверить</button>
+                            </div>
+                            <div class="options hidden" id="back-options">
                                 <!-- Options will be injected here -->
                             </div>
                             <button id="back-hint-btn" class="hint-btn hidden" data-i18n="flashcards_hint">💡
                                 Подсказка</button>
                         </div>
-                        <div class="hint" data-i18n="flashcards_hint">Click option or flip card</div>
+                        <div class="hint" data-i18n="flashcards_flip_instruction">Click option or flip card</div>
                     </div>
                 </div>
             </div>

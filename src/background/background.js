@@ -20,7 +20,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
             await i18n.init(); // Ensure correct language is loaded
             chrome.notifications.create('review_notification', {
                 type: 'basic',
-                iconUrl: chrome.runtime.getURL('src/assets/icon128.png'),
+                iconUrl: chrome.runtime.getURL('src/assets/icon.png'),
                 title: i18n.getMessage('notification_review_title'),
                 message: i18n.getMessage('notification_review_message').replace('%n', words.length),
                 priority: 1,
@@ -112,7 +112,7 @@ async function handleExplainWord(word) {
 
 async function handleGenerateFlashcards() {
     try {
-        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage']);
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'flashcardsWordsLimit', 'flashcardsExercisesLimit']);
         const apiKey = result.GEMINI_API_KEY;
 
         if (!apiKey) {
@@ -135,13 +135,23 @@ async function handleGenerateFlashcards() {
         }
 
         allWords = shuffleArray(allWords);
-        const limitedWords = allWords.slice(0, 25);
+        // Get limits from settings or use defaults
+        const wordsLimit = result.flashcardsWordsLimit || 25;
+        const exercisesLimit = result.flashcardsExercisesLimit || 25;
+
+        const limitedWords = allWords.slice(0, wordsLimit);
 
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
         // Pass all words as the first argument, empty array as second since we already combined them
-        const flashcards = await gemini.generateFlashcards(limitedWords, [], apiKey, model, language);
-        return { success: true, data: flashcards };
+        let flashcards = await gemini.generateFlashcards(limitedWords, [], apiKey, model, language);
+
+        // Limit exercises if needed
+        if (flashcards && flashcards.length > exercisesLimit) {
+            flashcards = shuffleArray(flashcards).slice(0, exercisesLimit);
+        }
+
+        return { success: true, data: flashcards, targetLanguage: language };
     } catch (e) {
         console.error(e);
         return { success: false, error: e.message };
@@ -171,7 +181,7 @@ async function handleUpdateFlashcardStats(word, success) {
 
 async function handleGenerateDefinitionCards() {
     try {
-        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'appLanguage']);
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'appLanguage', 'defCardsWordsLimit']);
         const apiKey = result.GEMINI_API_KEY;
 
         if (!apiKey) {
@@ -187,12 +197,13 @@ async function handleGenerateDefinitionCards() {
 
         // Shuffle and limit
         let limitedWords = shuffleArray(learningWords);
-        limitedWords = limitedWords.slice(0, 25);
+        const wordsLimit = result.defCardsWordsLimit || 10;
+        limitedWords = limitedWords.slice(0, wordsLimit);
 
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
         const cards = await gemini.generateDefinitionCards(limitedWords, apiKey, model, language);
-        return { success: true, data: cards };
+        return { success: true, data: cards, targetLanguage: language };
     } catch (e) {
         console.error(e);
         return { success: false, error: e.message };

@@ -16,11 +16,27 @@
             </div>
         </div>
 
+        <!-- Progress Indicator Sidebar -->
+        <div class="progress-sidebar" id="progress-sidebar">
+            <!-- Progress boxes will be injected here -->
+        </div>
+
         <div id="quiz-container">
             <div class="card">
                 <div class="word-display" id="q-word" data-i18n="loading">Loading...</div>
 
-                <div id="options-area" class="options-grid">
+                <div class="mode-controls">
+                    <button class="mode-btn" data-mode="options" data-i18n="mode_options">Options</button>
+                    <button class="mode-btn active" data-mode="manual" data-i18n="mode_manual">Manual</button>
+                </div>
+
+                <div class="input-area" id="input-area">
+                    <input type="text" id="manual-input" class="manual-input" data-i18n-placeholder="input_placeholder"
+                        placeholder="Type answer...">
+                    <button id="submit-btn" class="submit-btn" data-i18n="btn_check">Check</button>
+                </div>
+
+                <div id="options-area" class="options-grid hidden">
                     <!-- Options injected here -->
                 </div>
             </div>

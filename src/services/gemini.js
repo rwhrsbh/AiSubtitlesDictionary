@@ -14,18 +14,24 @@ export class GeminiService {
             uk: 'Ukrainian'
         };
 
-        const targetLang = languageNames[language] || 'Russian';
+        const userInterfaceLang = languageNames[language] || 'Russian';
 
         const prompt = `
-        Explain the word "${word}". 
+        IMPORTANT: First, detect what language the word "${word}" is in.
+
+        - If the word is in English, translate it to ${userInterfaceLang}
+        - If the word is in ${userInterfaceLang} (Russian/Ukrainian/etc), translate it to English
+        - If the word is in another language, translate it to both English and ${userInterfaceLang}
+
         Provide the response in JSON format with the following fields:
-        - translation: The translation in ${targetLang} (or English if the word is ${targetLang}).
-        - transcription: The phonetic transcription (IPA format).
-        - explanation: A brief explanation of the meaning in the target language (${targetLang}).
-        - examples: An array of 2 short example sentences.
-        - distractors: An array of 3 incorrect translations for a multiple choice quiz.
-        - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong.
-        
+        - word_language: The detected language of the input word (e.g., "English", "Russian", "Ukrainian", etc.)
+        - translation: The translation (if word is English, translate to ${userInterfaceLang}; if word is ${userInterfaceLang}, translate to English)
+        - transcription: The phonetic transcription (IPA format) of the ORIGINAL word "${word}"
+        - explanation: A brief explanation of the meaning in ${userInterfaceLang}
+        - examples: An array of 2 short example sentences using the ORIGINAL word "${word}"
+        - distractors: An array of 3 incorrect translations for a multiple choice quiz
+        - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong
+
         Return ONLY the JSON.
         `;
 
@@ -105,25 +111,29 @@ export class GeminiService {
         const prompt = `
     Create fill-in-the-blank flashcard exercises for EACH of the following words: ${wordList}
 
-    For each exercise, create:
-    1. An English sentence with ONE word replaced by _____ (blank)
-        2. The same sentence in ${targetLang} with the SAME word replaced by _____ (blank)
-        3. The correct missing word
-        4. Three incorrect but plausible options (distractors) in ENGLISH
-        5. Three incorrect but plausible options (distractors) in ${targetLang}
-        6. A subtle hint in ENGLISH (1-2 sentences) that helps without giving away the answer
-        7. A subtle hint in ${targetLang} (1-2 sentences) that helps without giving away the answer
-        8. A full explanation in ENGLISH of why the correct answer fits and why other options don't work in this context
-        9. A full explanation in ${targetLang} of why the correct answer fits and why other options don't work in this context
+    IMPORTANT: For EACH word, first detect what language it is in:
+    - If the word is in ENGLISH: create English sentence on the "front" side and ${targetLang} sentence on the "back" side
+    - If the word is in ${targetLang}: create ${targetLang} sentence on the "front" side and English sentence on the "back" side
 
-        Requirements:
-        - Use different words for each exercise
-        - Sentences should be natural and practical
-        - Both versions should have the blank in the corresponding position
-        - Make sentences interesting and memorable
-        - Distractors should be similar in meaning or context but clearly wrong
-        - Hints should guide thinking without revealing the answer (one in English, one in ${targetLang})
-        - Explanations should teach the word usage and explain why each distractor is incorrect in this specific context (one in English, one in ${targetLang})
+    For each exercise, create:
+    1. A sentence in the word's ORIGINAL language with ONE word replaced by _____ (blank) - this goes on "front" (en)
+    2. A sentence in the OPPOSITE language with the translation of the word replaced by _____ (blank) - this goes on "back" (ru)
+    3. The correct missing word in its original language
+    4. Three incorrect but plausible options (distractors) in the ORIGINAL language of the word
+    5. Three incorrect but plausible options (distractors) in the OPPOSITE language (translations)
+    6. A subtle hint in the ORIGINAL language (1-2 sentences) that helps without giving away the answer
+    7. A subtle hint in the OPPOSITE language (1-2 sentences) that helps without giving away the answer
+    8. A full explanation in the ORIGINAL language of why the correct answer fits and why other options don't work
+    9. A full explanation in the OPPOSITE language of why the correct answer fits and why other options don't work
+
+    Requirements:
+    - Use different words for each exercise
+    - Sentences should be natural and practical
+    - Both versions should have the blank in the corresponding position
+    - Make sentences interesting and memorable
+    - Distractors should be similar in meaning or context but clearly wrong
+    - Hints should guide thinking without revealing the answer
+    - Explanations should teach the word usage and explain why each distractor is incorrect
 
         CRITICAL VALIDATION RULES FOR ${targetLang.toUpperCase()} TRANSLATIONS:
         - The ${targetLang} translation of the correct English word MUST be the ONLY logically and semantically correct answer for the ${targetLang} sentence
@@ -195,18 +205,24 @@ export class GeminiService {
         const wordList = shuffledWords.map(w => w.word).join(', ');
 
         const prompt = `
-        Create BILINGUAL definition cards (English and ${targetLang}) for these words: ${wordList}
+        Create BILINGUAL definition cards for these words: ${wordList}
+
+        IMPORTANT: For EACH word, first detect what language it is in:
+        - If the word is in ENGLISH: provide English definitions and ${targetLang} translations
+        - If the word is in ${targetLang}: provide ${targetLang} definitions and English translations
 
         For each word, provide:
-        1. The word itself (in English)
-        2. ${targetLang} translation of the word
-        3. Phonetic transcription (IPA format)
-        4. Multiple definitions IN BOTH LANGUAGES (if the word has different meanings)
-        5. For each definition:
-           - A clear explanation of the meaning IN ENGLISH
-           - A clear explanation of the meaning IN ${targetLang.toUpperCase()}
-           - 1-2 example sentences IN ENGLISH where the word is replaced with "____"
-           - 1-2 example sentences IN ${targetLang.toUpperCase()} where the word is replaced with "____"
+        1. The word itself (in its ORIGINAL language)
+        2. Translation to the opposite language (if English word, translate to ${targetLang}; if ${targetLang} word, translate to English)
+        3. Phonetic transcription (IPA format) of the ORIGINAL word
+        4. Three incorrect but plausible options (distractors) in the word's ORIGINAL language
+        5. Three incorrect but plausible options (distractors) in the OPPOSITE language (translations of the distractors)
+        6. Multiple definitions IN BOTH LANGUAGES (if the word has different meanings)
+        7. For each definition:
+           - A clear explanation of the meaning in the word's ORIGINAL language
+           - A clear explanation of the meaning in the OPPOSITE language
+           - 1-2 example sentences in the ORIGINAL language where the word is replaced with "____"
+           - 1-2 example sentences in the OPPOSITE language (translations) where the word is replaced with "____"
            - For VERBS: if the verb commonly requires a preposition, include examples showing different prepositions
         
         SPECIAL RULES FOR VERBS:
@@ -221,6 +237,8 @@ export class GeminiService {
             "word": "deny",
             "word_ru": "отрицать, отказывать", // ${targetLang} translation
             "transcription": "/dɪˈnaɪ/",
+            "distractors_en": ["accept", "allow", "confirm"],
+            "distractors_ru": ["принимать", "разрешать", "подтверждать"],
             "definitions": [
               {
                 "meaning_en": "to not allow someone to have or do something",
@@ -260,6 +278,8 @@ export class GeminiService {
             "word": "argue",
             "word_ru": "спорить, доказывать", // ${targetLang} translation
             "transcription": "/ˈɑːɡjuː/",
+            "distractors_en": ["agree", "accept", "listen"],
+            "distractors_ru": ["соглашаться", "принимать", "слушать"],
             "definitions": [
               {
                 "meaning_en": "to disagree or have a dispute",
@@ -296,6 +316,7 @@ export class GeminiService {
         - ${targetLang} examples should be natural translations, not word-for-word
         - For verbs with multiple preposition usages, show different examples in both languages
         - The "preposition" field should be the preposition used in that language (or null if none)
+        - Distractors should be single words or short phrases that fit the context of a "definition match" quiz
 
         Return ONLY the JSON array, no explanations.
         `;

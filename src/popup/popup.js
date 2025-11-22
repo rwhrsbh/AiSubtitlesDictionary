@@ -510,7 +510,16 @@ async function loadSettings() {
         await populateModels();
     }
 
-    const settings = await chrome.storage.local.get(['geminiModel', 'quizTranslation', 'quizTranscription', 'appLanguage']);
+    const settings = await chrome.storage.local.get([
+        'geminiModel',
+        'quizTranslation',
+        'quizTranscription',
+        'appLanguage',
+        'tasksLimit',
+        'flashcardsWordsLimit',
+        'flashcardsExercisesLimit',
+        'defCardsWordsLimit'
+    ]);
 
     if (settings.geminiModel) {
         const select = document.getElementById('gemini-model');
@@ -519,7 +528,7 @@ async function loadSettings() {
         if (select.querySelector(`option[value="${settings.geminiModel}"]`)) {
             select.value = settings.geminiModel;
         } else {
-            // If custom model or not in list, maybe add it? 
+            // If custom model or not in list, maybe add it?
             // Let's just set it, browser handles invalid value by showing first or empty
             // But we should probably ensure it's selected if we just fetched
             select.value = settings.geminiModel;
@@ -529,6 +538,12 @@ async function loadSettings() {
     document.getElementById('quiz-translation').checked = settings.quizTranslation !== false;
     document.getElementById('quiz-transcription').checked = settings.quizTranscription !== false;
     document.getElementById('flashcards-include-history').checked = settings.flashcardsIncludeHistory !== false;
+
+    // Load word limits
+    document.getElementById('tasks-limit').value = settings.tasksLimit || 20;
+    document.getElementById('flashcards-words-limit').value = settings.flashcardsWordsLimit || 25;
+    document.getElementById('flashcards-exercises-limit').value = settings.flashcardsExercisesLimit || 25;
+    document.getElementById('def-cards-words-limit').value = settings.defCardsWordsLimit || 10;
 
     const uiLang = chrome.i18n.getUILanguage();
     let defaultLang = 'en';
@@ -593,6 +608,10 @@ async function saveSettings() {
     const quizTranscription = document.getElementById('quiz-transcription').checked;
     const flashcardsIncludeHistory = document.getElementById('flashcards-include-history').checked;
     const appLanguage = document.getElementById('app-language').value;
+    const tasksLimit = parseInt(document.getElementById('tasks-limit').value) || 20;
+    const flashcardsWordsLimit = parseInt(document.getElementById('flashcards-words-limit').value) || 25;
+    const flashcardsExercisesLimit = parseInt(document.getElementById('flashcards-exercises-limit').value) || 25;
+    const defCardsWordsLimit = parseInt(document.getElementById('def-cards-words-limit').value) || 10;
 
     if (!quizTranslation && !quizTranscription) {
         alert('Select at least one quiz type!');
@@ -612,7 +631,11 @@ async function saveSettings() {
         flashcardsIncludeHistory: flashcardsIncludeHistory,
         appLanguage: appLanguage,
         quizTranslation: quizTranslation,
-        quizTranscription: quizTranscription
+        quizTranscription: quizTranscription,
+        tasksLimit: tasksLimit,
+        flashcardsWordsLimit: flashcardsWordsLimit,
+        flashcardsExercisesLimit: flashcardsExercisesLimit,
+        defCardsWordsLimit: defCardsWordsLimit
     });
 
     // Update language immediately

@@ -141,7 +141,7 @@
         "message": "Definition Cards"
     },
     "def_cards_loading": {
-        "message": "Generating cards with AI..."
+        "message": "Loading cards..."
     },
     "def_cards_wait": {
         "message": "This may take a moment"
@@ -262,5 +262,50 @@
     },
     "no_explanation": {
         "message": "No explanation available."
+    },
+    "flashcards_unanswered_warning": {
+        "message": "You have unanswered cards! Redirecting in"
+    },
+    "def_cards_unanswered_warning": {
+        "message": "You have unanswered cards! Redirecting..."
+    },
+    "mode_options": {
+        "message": "Options"
+    },
+    "mode_manual": {
+        "message": "Manual"
+    },
+    "input_placeholder": {
+        "message": "Type answer..."
+    },
+    "btn_check": {
+        "message": "Check"
+    },
+    "flashcards_flip_instruction": {
+        "message": "Choose option or flip card"
+    },
+    "mistakes_review_title": {
+        "message": "Review Mistakes"
+    },
+    "mistakes_review_subtitle": {
+        "message": "Let's practice the words you got wrong"
+    },
+    "review_mistakes_title": {
+        "message": "Mistake Review"
+    },
+    "review_mistakes_subtitle": {
+        "message": "Practice your incorrect answers"
+    },
+    "word_singular": {
+        "message": "word"
+    },
+    "word_plural": {
+        "message": "words"
+    },
+    "card_singular": {
+        "message": "card"
+    },
+    "card_plural": {
+        "message": "cards"
     }
 }

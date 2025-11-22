@@ -4,14 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Definition Cards - AI Subtitles</title>
-    <!DOCTYPE html>
-    <html>
-
-    <head>
-        <meta charset="UTF-8">
-        <title>Definition Cards - AI Subtitles</title>
-        <link rel="stylesheet" href="definition-cards.css">
-    </head>
+    <link rel="stylesheet" href="definition-cards.css">
+</head>
 
 <body>
     <div class="container">
@@ -28,33 +22,71 @@
             <p class="loading-subtext" data-i18n="def_cards_wait">This may take a moment</p>
         </div>
 
+        <!-- Progress Indicator Sidebar -->
+        <div class="progress-sidebar" id="progress-sidebar">
+            <!-- Progress boxes will be injected here -->
+        </div>
+
         <div id="card-container" class="card-container hidden">
             <div class="card" id="definition-card">
                 <div class="card-inner">
-                    <!-- Front (English) -->
                     <div class="card-face card-front">
-                        <div class="language-badge">EN</div>
+                        <div class="language-badge" id="front-lang">EN</div>
                         <div class="card-header">
-                            <h2 id="card-word-en" class="card-word">word</h2>
-                            <div id="card-transcription" class="card-transcription">/wɜːrd/</div>
+                            <h2 id="card-hint-en" class="card-word">hint</h2>
+                            <div id="card-transcription" class="card-transcription hidden">/wɜːrd/</div>
                         </div>
-                        <div id="definitions-container-en" class="definitions-container">
-                            <!-- English definitions will be injected here -->
+                        <div id="examples-container-en" class="examples-list">
+                            <!-- English examples will be injected here -->
                         </div>
+
+                        <div class="interaction-area">
+                            <div class="mode-controls">
+                                <button class="mode-btn" data-mode="options" data-side="front"
+                                    data-i18n="mode_options">Options</button>
+                                <button class="mode-btn active" data-mode="manual" data-side="front"
+                                    data-i18n="mode_manual">Manual</button>
+                            </div>
+                            <div class="input-area" id="front-input-area">
+                                <input type="text" id="front-input" class="manual-input"
+                                    data-i18n-placeholder="input_placeholder" placeholder="Type answer...">
+                                <button id="front-submit" class="submit-btn" data-i18n="btn_check">Check</button>
+                            </div>
+                            <div class="options hidden" id="front-options">
+                                <!-- Options will be injected here -->
+                            </div>
+                        </div>
+
                         <div class="flip-hint" data-i18n="def_cards_flip_hint">Click card to flip 🔄</div>
                     </div>
-
-                    <!-- Back (Russian) -->
                     <div class="card-face card-back">
-                        <div class="language-badge">RU</div>
+                        <div class="language-badge" id="back-lang">RU</div>
                         <div class="card-header">
-                            <h2 id="card-word-ru" class="card-word">слово</h2>
-                            <div id="card-transcription-ru" class="card-transcription">/wɜːrd/</div>
+                            <h2 id="card-hint-ru" class="card-word">подсказка</h2>
+                            <div id="card-transcription-ru" class="card-transcription hidden">/wɜːrd/</div>
                         </div>
-                        <div id="definitions-container-ru" class="definitions-container">
-                            <!-- Russian definitions will be injected here -->
+                        <div id="examples-container-ru" class="examples-list">
+                            <!-- Russian examples will be injected here -->
                         </div>
-                        <div class="flip-hint" data-i18n="def_cards_flip_hint">Нажмите, чтобы перевернуть 🔄</div>
+
+                        <div class="interaction-area">
+                            <div class="mode-controls">
+                                <button class="mode-btn" data-mode="options" data-side="back"
+                                    data-i18n="mode_options">Варианты</button>
+                                <button class="mode-btn active" data-mode="manual" data-side="back"
+                                    data-i18n="mode_manual">Ввод</button>
+                            </div>
+                            <div class="input-area" id="back-input-area">
+                                <input type="text" id="back-input" class="manual-input"
+                                    data-i18n-placeholder="input_placeholder" placeholder="Введите ответ...">
+                                <button id="back-submit" class="submit-btn" data-i18n="btn_check">Проверить</button>
+                            </div>
+                            <div class="options hidden" id="back-options">
+                                <!-- Options will be injected here -->
+                            </div>
+                        </div>
+
+                        <div class="flip-hint" data-i18n="def_cards_flip_hint">Click card to flip 🔄</div>
                     </div>
                 </div>
             </div>

@@ -113,6 +113,37 @@
         </div>
 
         <div class="form-group">
+            <label data-i18n="settings_limits">Word Limits</label>
+            <div style="margin-top: 8px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                    data-i18n="settings_tasks_limit">Review Tasks Limit (per session)</label>
+                <input type="number" id="tasks-limit" min="1" max="100" value="20"
+                    style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+            </div>
+            <div style="margin-top: 12px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                    data-i18n="settings_flashcards_words_limit">Flashcards Words
+                    Limit</label>
+                <input type="number" id="flashcards-words-limit" min="1" max="200" value="25"
+                    style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+            </div>
+            <div style="margin-top: 12px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                    data-i18n="settings_flashcards_exercises_limit">Flashcards Exercises
+                    Limit</label>
+                <input type="number" id="flashcards-exercises-limit" min="1" max="100" value="25"
+                    style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+            </div>
+            <div style="margin-top: 12px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                    data-i18n="settings_def_cards_words_limit">Definition Cards Words
+                    Limit</label>
+                <input type="number" id="def-cards-words-limit" min="1" max="50" value="10"
+                    style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+            </div>
+        </div>
+
+        <div class="form-group">
             <label data-i18n="settings_data_management">Data Management</label>
             <div style="display: flex; gap: 10px;">
                 <button id="export-data-btn" class="secondary-btn" style="flex: 1;" data-i18n="settings_export">Export

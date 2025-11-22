@@ -1,14 +1,25 @@
 import { StorageService } from '../services/storage.js';
 import { I18nService } from '../services/i18n.js';
+import { isCloseMatch } from '../services/utils.js';
 
 const storage = new StorageService();
 const i18n = new I18nService();
 let currentReviewWords = [];
 let currentWordIndex = 0;
+let wordStates = []; // Track answered state for each word
+let currentMode = 'manual'; // 'options' or 'manual'
+let isAnswered = false; // Prevent multiple clicks
+
+// Mistake review mode
+let mistakeWords = [];
+let isReviewingMistakes = false;
+let originalWordsCount = 0;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     localizeHtml();
+    setupModeToggles();
+    setupManualInput();
     loadReviewSession();
     document.getElementById('close-btn').addEventListener('click', () => window.close());
 });
@@ -21,22 +32,150 @@ function localizeHtml() {
             element.textContent = message;
         }
     });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        const message = i18n.getMessage(key);
+        if (message) {
+            element.placeholder = message;
+        }
+    });
+}
+
+function setupModeToggles() {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const mode = btn.dataset.mode;
+            setMode(mode);
+        });
+    });
+}
+
+function setMode(mode) {
+    currentMode = mode;
+
+    // Update UI
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    const inputArea = document.getElementById('input-area');
+    const optionsArea = document.getElementById('options-area');
+
+    if (!inputArea || !optionsArea) {
+        console.error('Mode elements not found');
+        return;
+    }
+
+    if (mode === 'manual') {
+        inputArea.classList.remove('hidden');
+        optionsArea.classList.add('hidden');
+        setTimeout(() => {
+            const manualInput = document.getElementById('manual-input');
+            if (manualInput) manualInput.focus();
+        }, 100);
+    } else if (mode === 'options') {
+        inputArea.classList.add('hidden');
+        optionsArea.classList.remove('hidden');
+    }
+}
+
+function setupManualInput() {
+    const input = document.getElementById('manual-input');
+    const submit = document.getElementById('submit-btn');
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !isAnswered) {
+            handleManualSubmit();
+        }
+    });
+
+    submit.addEventListener('click', () => {
+        if (!isAnswered) {
+            handleManualSubmit();
+        }
+    });
+}
+
+function handleManualSubmit() {
+    const input = document.getElementById('manual-input');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (!input) return;
+
+    const value = input.value.trim();
+    if (!value || isAnswered) return;
+
+    const wordData = currentReviewWords[currentWordIndex];
+
+    // Get the correct answer based on current mode
+    const correctTranslation = wordData.translation;
+    const correctTranscription = wordData.transcription || '';
+
+    // Check which quiz mode we're in
+    const settings = wordStates[currentWordIndex]?.mode || 'translation';
+
+    let matchResult;
+    let correctAnswer;
+
+    if (settings === 'translation') {
+        correctAnswer = correctTranslation;
+        matchResult = isCloseMatch(value, correctTranslation);
+    } else {
+        correctAnswer = correctTranscription;
+        matchResult = isCloseMatch(value, correctTranscription);
+    }
+
+    const isCorrect = matchResult.match;
+
+    // Disable input
+    input.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+    isAnswered = true;
+
+    // Update visual feedback
+    if (matchResult.exact) {
+        input.classList.add('correct');
+    } else if (matchResult.match) {
+        input.classList.add('close');
+    } else {
+        input.classList.add('wrong');
+        input.value += ` (${correctAnswer})`;
+    }
+
+    // Also highlight in options if they exist
+    const optionsContainer = document.getElementById('options-area');
+    const optionBtns = optionsContainer.querySelectorAll('.option-btn');
+    optionBtns.forEach(btn => {
+        btn.disabled = true;
+        if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+            btn.classList.add('correct');
+        }
+    });
+
+    handleAnswer(isCorrect);
 }
 
 async function loadReviewSession() {
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
 
+    // Get tasks limit from settings
+    const settings = await chrome.storage.local.get('tasksLimit');
+    const tasksLimit = settings.tasksLimit || 20;
+
     if (mode === 'all') {
         const allWords = await storage.getLearningList();
-        // Shuffle for better experience
-        currentReviewWords = allWords.sort(() => Math.random() - 0.5);
+        // Shuffle for better experience and apply limit
+        currentReviewWords = allWords.sort(() => Math.random() - 0.5).slice(0, tasksLimit);
     } else if (mode === 'problem') {
         const problemWords = await storage.getProblemWords();
-        // Shuffle
-        currentReviewWords = problemWords.sort(() => Math.random() - 0.5);
+        // Shuffle and apply limit
+        currentReviewWords = problemWords.sort(() => Math.random() - 0.5).slice(0, tasksLimit);
     } else {
-        currentReviewWords = await storage.getWordsToReview();
+        const dueWords = await storage.getWordsToReview();
+        // Apply limit to due words
+        currentReviewWords = dueWords.slice(0, tasksLimit);
     }
     const wordsToReviewText = i18n.getMessage('words_to_review');
     document.getElementById('words-count').textContent = `${currentReviewWords.length} ${wordsToReviewText}`;
@@ -48,50 +187,209 @@ async function loadReviewSession() {
     }
 
     currentWordIndex = 0;
+    originalWordsCount = currentReviewWords.length; // Store original count
+    wordStates = new Array(currentReviewWords.length).fill(null);
+    initializeProgressIndicators();
     showNextCard();
 }
 
-function showNextCard() {
+async function showNextCard() {
     if (currentWordIndex >= currentReviewWords.length) {
-        const completeTitle = i18n.getMessage('review_complete_title');
-        const completeMsg = i18n.getMessage('review_complete_msg');
-        document.getElementById('quiz-container').innerHTML = `<div class="card"><h2>${completeTitle}</h2><p>${completeMsg}</p></div>`;
-        setTimeout(() => window.close(), 3000);
+        // Check if we should start mistake review
+        if (!isReviewingMistakes && mistakeWords.length > 0) {
+            showMistakeReviewScreen();
+        } else {
+            // Show complete screen
+            const completeTitle = i18n.getMessage('review_complete_title');
+            const completeMsg = i18n.getMessage('review_complete_msg');
+            document.getElementById('quiz-container').innerHTML = `<div class="card"><h2>${completeTitle}</h2><p>${completeMsg}</p></div>`;
+            setTimeout(() => window.close(), 3000);
+        }
         return;
     }
+
+    updateProgressIndicators();
 
     const wordData = currentReviewWords[currentWordIndex];
 
     // Get quiz settings
-    chrome.storage.local.get(['quizTranslation', 'quizTranscription'], (settings) => {
-        const enabledModes = [];
-        if (settings.quizTranslation !== false) enabledModes.push('translation');
-        if (settings.quizTranscription !== false) enabledModes.push('transcription');
+    const settings = await chrome.storage.local.get(['quizTranslation', 'quizTranscription']);
+    const enabledModes = [];
+    if (settings.quizTranslation !== false) enabledModes.push('translation');
+    if (settings.quizTranscription !== false) enabledModes.push('transcription');
 
-        // Default to both if none saved
-        if (enabledModes.length === 0) {
-            enabledModes.push('translation', 'transcription');
-        }
+    // Default to both if none saved
+    if (enabledModes.length === 0) {
+        enabledModes.push('translation', 'transcription');
+    }
 
-        const mode = enabledModes[Math.floor(Math.random() * enabledModes.length)];
+    const mode = enabledModes[Math.floor(Math.random() * enabledModes.length)];
 
-        showQuiz(wordData, mode);
+    showQuiz(wordData, mode);
+}
+
+function showMistakeReviewScreen() {
+    const container = document.getElementById('quiz-container');
+    container.innerHTML = `
+        <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); text-align: center; padding: 40px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
+            <h2 style="font-size: 28px; margin-bottom: 12px;">${i18n.getMessage('review_mistakes_title')}</h2>
+            <p style="font-size: 18px; opacity: 0.9;">${i18n.getMessage('review_mistakes_subtitle')}</p>
+            <p style="font-size: 22px; font-weight: 700; margin-top: 20px;">${mistakeWords.length} ${mistakeWords.length === 1 ? i18n.getMessage('word_singular') : i18n.getMessage('word_plural')}</p>
+            <button id="start-mistakes-btn" style="margin-top: 24px; padding: 12px 32px; font-size: 16px; background: white; color: #f97316; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">${i18n.getMessage('start_review')}</button>
+        </div>
+    `;
+
+    let autoStartTimeout;
+
+    // Add click handler for start button
+    const startBtn = document.getElementById('start-mistakes-btn');
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            clearTimeout(autoStartTimeout); // Cancel auto-start
+            startMistakeReview();
+        });
+    }
+
+    // Auto-start mistake review after 3 seconds
+    autoStartTimeout = setTimeout(() => {
+        startMistakeReview();
+    }, 3000);
+}
+
+function startMistakeReview() {
+    // Prevent double execution
+    if (isReviewingMistakes) return;
+
+    isReviewingMistakes = true;
+
+    // Add mistake words to review list
+    const mistakeStartIndex = currentReviewWords.length;
+    mistakeWords.forEach(word => {
+        currentReviewWords.push(word);
+        wordStates.push(null);
+    });
+
+    // Recreate progress sidebar for mistake words
+    initializeMistakeProgressIndicators();
+
+    // Restore quiz container structure (it was replaced in showMistakeReviewScreen)
+    const container = document.getElementById('quiz-container');
+    container.innerHTML = `
+        <div class="card">
+            <div class="word-display" id="q-word">Loading...</div>
+
+            <div class="mode-controls">
+                <button class="mode-btn" data-mode="options" data-i18n="mode_options">Options</button>
+                <button class="mode-btn active" data-mode="manual" data-i18n="mode_manual">Manual</button>
+            </div>
+
+            <div class="input-area" id="input-area">
+                <input type="text" id="manual-input" class="manual-input" data-i18n-placeholder="input_placeholder" placeholder="Type answer...">
+                <button id="submit-btn" class="submit-btn" data-i18n="btn_check">Check</button>
+            </div>
+
+            <div id="options-area" class="options-grid hidden">
+                <!-- Options injected here -->
+            </div>
+        </div>
+    `;
+
+    // Re-localize the injected HTML
+    localizeHtml();
+
+    // Re-setup event handlers for mode toggles and input
+    setupModeToggles();
+    setupManualInput();
+
+    // Ensure speech-area exists (even if hidden)
+    if (!document.getElementById('speech-area')) {
+        const speechArea = document.createElement('div');
+        speechArea.id = 'speech-area';
+        speechArea.className = 'hidden';
+        document.body.appendChild(speechArea);
+    }
+
+    // Navigate to first mistake
+    currentWordIndex = mistakeStartIndex;
+    showNextCard();
+}
+
+function initializeMistakeProgressIndicators() {
+    const sidebar = document.getElementById('progress-sidebar');
+    if (!sidebar) return;
+
+    sidebar.innerHTML = '';
+
+    mistakeWords.forEach((_, index) => {
+        const box = document.createElement('div');
+        box.className = 'progress-box unanswered';
+        box.textContent = index + 1;
+        const actualIndex = originalWordsCount + index;
+        box.dataset.index = actualIndex;
+        sidebar.appendChild(box);
     });
 }
 
 function showQuiz(wordData, mode) {
     document.getElementById('q-word').textContent = wordData.word;
     const optionsContainer = document.getElementById('options-area');
-    const speechArea = document.getElementById('speech-area');
+    const input = document.getElementById('manual-input');
+    const submit = document.getElementById('submit-btn');
 
+    // Reset state
+    isAnswered = false;
+
+    // Reset input (if exists)
+    if (input) {
+        input.value = '';
+        input.disabled = false;
+        input.className = 'manual-input';
+    }
+    if (submit) {
+        submit.disabled = false;
+    }
+
+    // Clear options
     optionsContainer.innerHTML = '';
-    speechArea.classList.add('hidden');
-    optionsContainer.classList.remove('hidden');
+
+    // Store quiz mode in wordStates for later use
+    if (!wordStates[currentWordIndex]) {
+        wordStates[currentWordIndex] = null;
+    }
+    // Store the mode type (translation or transcription)
+    wordStates[currentWordIndex] = { mode: mode, answered: null };
+
+    // For transcription mode, force options mode and hide manual toggle
+    const modeControlsContainer = document.querySelector('.mode-controls');
+    if (mode === 'transcription') {
+        // Force options mode for transcription
+        currentMode = 'options';
+
+        // Hide mode controls entirely for transcription
+        if (modeControlsContainer) {
+            modeControlsContainer.style.display = 'none';
+        }
+
+        setMode('options');
+    } else {
+        // Show mode controls for translation
+        if (modeControlsContainer) {
+            modeControlsContainer.style.display = '';
+        }
+
+        // Set UI mode if needed
+        setMode(currentMode);
+    }
+
+    let correctAnswer;
+    let options;
 
     if (mode === 'translation') {
         // TRANSLATION QUIZ
         console.log('[Quiz] Translation:', wordData.word);
-        let options = [{ text: wordData.translation, correct: true }];
+        correctAnswer = wordData.translation;
+        options = [{ text: wordData.translation, correct: true }];
 
         if (wordData.distractors && Array.isArray(wordData.distractors)) {
             wordData.distractors.slice(0, 3).forEach(d => options.push({ text: d, correct: false }));
@@ -102,20 +400,11 @@ function showQuiz(wordData, mode) {
                 { text: 'Option C', correct: false }
             );
         }
-
-        options = options.sort(() => Math.random() - 0.5);
-
-        options.forEach(opt => {
-            const btn = document.createElement('div');
-            btn.className = 'option-btn';
-            btn.textContent = opt.text;
-            btn.onclick = () => handleAnswer(opt.correct, btn);
-            optionsContainer.appendChild(btn);
-        });
     } else {
         // TRANSCRIPTION QUIZ
         console.log('[Quiz] Transcription:', wordData.word);
-        let options = [{ text: wordData.transcription || '[no transcription]', correct: true }];
+        correctAnswer = wordData.transcription || '[no transcription]';
+        options = [{ text: wordData.transcription || '[no transcription]', correct: true }];
 
         if (wordData.transcription_distractors && Array.isArray(wordData.transcription_distractors)) {
             wordData.transcription_distractors.slice(0, 3).forEach(d => options.push({ text: d, correct: false }));
@@ -126,21 +415,81 @@ function showQuiz(wordData, mode) {
                 { text: '/ˈɒpʃən siː/', correct: false }
             );
         }
-
-        options = options.sort(() => Math.random() - 0.5);
-
-        options.forEach(opt => {
-            const btn = document.createElement('div');
-            btn.className = 'option-btn';
-            btn.textContent = opt.text;
-            btn.onclick = () => handleAnswer(opt.correct, btn);
-            optionsContainer.appendChild(btn);
-        });
     }
+
+    // Shuffle and render options
+    options = options.sort(() => Math.random() - 0.5);
+
+    options.forEach(opt => {
+        const btn = document.createElement('div');
+        btn.className = 'option-btn';
+        btn.textContent = opt.text;
+        btn.onclick = () => {
+            if (!isAnswered) {
+                handleOptionClick(opt.correct, btn, correctAnswer);
+            }
+        };
+        optionsContainer.appendChild(btn);
+    });
 }
 
-async function handleAnswer(isCorrect, element = null) {
-    if (element) element.classList.add(isCorrect ? 'correct' : 'wrong');
+function handleOptionClick(isCorrect, element, correctAnswer) {
+    if (isAnswered) return; // Protection from multiple clicks
+
+    isAnswered = true;
+
+    // Disable all option buttons
+    const optionsContainer = document.getElementById('options-area');
+    const allButtons = optionsContainer.querySelectorAll('.option-btn');
+    allButtons.forEach(btn => btn.disabled = true);
+
+    // Visual feedback
+    element.classList.add(isCorrect ? 'correct' : 'wrong');
+
+    // If wrong, also highlight correct answer
+    if (!isCorrect) {
+        allButtons.forEach(btn => {
+            if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+                btn.classList.add('correct');
+            }
+        });
+    }
+
+    // Update manual input to sync
+    const input = document.getElementById('manual-input');
+    const submit = document.getElementById('submit-btn');
+    input.disabled = true;
+    submit.disabled = true;
+
+    if (isCorrect) {
+        input.value = correctAnswer;
+        input.classList.add('correct');
+    } else {
+        input.value = `(${correctAnswer})`;
+        input.classList.add('wrong');
+    }
+
+    handleAnswer(isCorrect);
+}
+
+async function handleAnswer(isCorrect) {
+    // Update state
+    if (wordStates[currentWordIndex]) {
+        wordStates[currentWordIndex].answered = isCorrect;
+    } else {
+        wordStates[currentWordIndex] = isCorrect;
+    }
+
+    // Track mistakes (only during main session, not during mistake review)
+    if (!isReviewingMistakes && !isCorrect && currentWordIndex < originalWordsCount) {
+        const word = currentReviewWords[currentWordIndex];
+        const alreadyAdded = mistakeWords.some(mw => mw.word === word.word);
+        if (!alreadyAdded) {
+            mistakeWords.push(word);
+        }
+    }
+
+    updateProgressIndicators();
 
     await chrome.runtime.sendMessage({
         type: 'UPDATE_WORD_STATS',
@@ -152,4 +501,53 @@ async function handleAnswer(isCorrect, element = null) {
         currentWordIndex++;
         showNextCard();
     }, 1000);
+}
+
+// Initialize progress indicators
+function initializeProgressIndicators() {
+    const sidebar = document.getElementById('progress-sidebar');
+    if (!sidebar) return;
+
+    sidebar.innerHTML = '';
+
+    // Only show progress for original words, not mistake review words
+    const wordsToShow = Math.min(currentReviewWords.length, originalWordsCount || currentReviewWords.length);
+
+    for (let index = 0; index < wordsToShow; index++) {
+        const box = document.createElement('div');
+        box.className = 'progress-box unanswered';
+        box.textContent = index + 1;
+        box.dataset.index = index;
+        sidebar.appendChild(box);
+    }
+}
+
+// Update progress indicators
+function updateProgressIndicators() {
+    const sidebar = document.getElementById('progress-sidebar');
+    if (!sidebar) return;
+
+    const boxes = sidebar.querySelectorAll('.progress-box');
+    boxes.forEach((box) => {
+        // Get actual word index from data attribute
+        const actualIndex = parseInt(box.dataset.index);
+        const stateObj = wordStates[actualIndex];
+        const state = stateObj?.answered !== undefined ? stateObj.answered : stateObj;
+
+        // Remove all state classes
+        box.classList.remove('unanswered', 'correct', 'incorrect', 'active');
+
+        if (state === true) {
+            box.classList.add('correct');
+        } else if (state === false) {
+            box.classList.add('incorrect');
+        } else {
+            box.classList.add('unanswered');
+        }
+
+        // Highlight current
+        if (actualIndex === currentWordIndex) {
+            box.classList.add('active');
+        }
+    });
 }

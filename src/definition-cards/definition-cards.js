@@ -1,4 +1,5 @@
 import { I18nService } from '../services/i18n.js';
+import { isCloseMatch } from '../services/utils.js';
 
 const i18n = new I18nService();
 
@@ -7,6 +8,19 @@ const i18n = new I18nService();
 let cards = [];
 let currentIndex = 0;
 let isFlipped = false;
+let frontMode = 'manual';
+let backMode = 'manual';
+let frontAnswered = false;
+let backAnswered = false;
+let frontCorrect = false;
+let backCorrect = false;
+let cardStates = {};
+let targetLanguage = 'RU';
+
+// Mistake review mode
+let mistakeCards = [];
+let isReviewingMistakes = false;
+let originalCardsCount = 0;
 
 // DOM Elements
 const loadingScreen = document.getElementById('loading-screen');
@@ -27,6 +41,8 @@ const errorMessage = document.getElementById('error-message');
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     localizeHtml();
+    setupModeToggles();
+    setupManualInputs();
     await loadDefinitionCards();
 });
 
@@ -38,6 +54,184 @@ function localizeHtml() {
             element.textContent = message;
         }
     });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        const message = i18n.getMessage(key);
+        if (message) {
+            element.placeholder = message;
+        }
+    });
+}
+
+function setupModeToggles() {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const mode = btn.dataset.mode;
+            const side = btn.dataset.side;
+            setMode(side, mode);
+        });
+    });
+}
+
+function setupManualInputs() {
+    ['front', 'back'].forEach(side => {
+        const input = document.getElementById(`${side}-input`);
+        const submit = document.getElementById(`${side}-submit`);
+
+        input.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') handleSubmit(side);
+        });
+
+        input.addEventListener('input', (e) => {
+            const value = e.target.value;
+            if (!cardStates[currentIndex]) return;
+
+            if (side === 'front') {
+                cardStates[currentIndex].frontInputValue = value;
+            } else {
+                cardStates[currentIndex].backInputValue = value;
+            }
+        });
+
+        input.addEventListener('click', (e) => e.stopPropagation());
+
+        submit.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleSubmit(side);
+        });
+    });
+}
+
+function setMode(side, mode) {
+    if (side === 'front') frontMode = mode;
+    else backMode = mode;
+
+    const container = side === 'front' ? document.querySelector('.card-front') : document.querySelector('.card-back');
+    container.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+
+    const inputArea = document.getElementById(`${side}-input-area`);
+    const optionsArea = document.getElementById(`${side}-options`);
+
+    // Hide all first
+    inputArea.classList.add('hidden');
+    optionsArea.classList.add('hidden');
+
+    // Remove animation classes
+    inputArea.classList.remove('fade-in-content');
+    optionsArea.classList.remove('fade-in-content');
+
+    if (mode === 'manual') {
+        inputArea.classList.remove('hidden');
+        inputArea.classList.add('fade-in-content');
+        setTimeout(() => {
+            document.getElementById(`${side}-input`).focus();
+            adjustCardHeight();
+        }, 100);
+    } else if (mode === 'options') {
+        optionsArea.classList.remove('hidden');
+        optionsArea.classList.add('fade-in-content');
+        setTimeout(() => adjustCardHeight(), 100);
+    }
+}
+
+function handleSubmit(side) {
+    const input = document.getElementById(`${side}-input`);
+    const value = input.value.trim();
+    if (!value) return;
+
+    const card = cards[currentIndex];
+    const wordEn = card.word;
+    const wordRu = card.word_ru || card.word;
+
+    // Check against both languages
+    let matchResult;
+    if (side === 'front') {
+        // On front side, accept both EN and RU
+        matchResult = isCloseMatch(value, wordEn, wordRu);
+    } else {
+        // On back side, accept both RU and EN
+        matchResult = isCloseMatch(value, wordRu, wordEn);
+    }
+
+    const displayAnswer = side === 'front' ? wordEn : wordRu;
+    handleManualResult(side, matchResult, input, displayAnswer);
+}
+
+function handleManualResult(side, result, input, correctAnswer) {
+    input.disabled = true;
+    document.getElementById(`${side}-submit`).disabled = true;
+
+    const isCorrect = result.match;
+
+    if (side === 'front') {
+        frontAnswered = true;
+        frontCorrect = isCorrect;
+        cardStates[currentIndex] = cardStates[currentIndex] || {};
+        cardStates[currentIndex].frontAnswered = true;
+        cardStates[currentIndex].frontCorrect = isCorrect;
+    } else {
+        backAnswered = true;
+        backCorrect = isCorrect;
+        cardStates[currentIndex] = cardStates[currentIndex] || {};
+        cardStates[currentIndex].backAnswered = true;
+        cardStates[currentIndex].backCorrect = isCorrect;
+    }
+
+    if (result.exact) {
+        input.classList.add('correct');
+    } else if (result.match) {
+        input.classList.add('close');
+        requeueCard();
+    } else {
+        input.classList.add('wrong');
+        input.value += ` (${correctAnswer})`;
+    }
+
+    // Show transcription if answered
+    const transId = side === 'front' ? 'card-transcription' : 'card-transcription-ru';
+    document.getElementById(transId).classList.remove('hidden');
+
+    // Also highlight in options if they exist
+    const optionsContainer = side === 'front' ? document.getElementById('front-options') : document.getElementById('back-options');
+    if (optionsContainer) {
+        const optionBtns = optionsContainer.querySelectorAll('.option-btn');
+        optionBtns.forEach(btn => {
+            btn.disabled = true;
+            if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+                btn.classList.add('correct');
+            }
+        });
+    }
+
+    // If both sides answered, track mistakes and replace blanks
+    if (frontAnswered && backAnswered) {
+        const bothCorrect = frontCorrect && backCorrect;
+
+        // Track mistakes (only during main session, not during mistake review)
+        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalCardsCount) {
+            const card = cards[currentIndex];
+            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+            if (!alreadyAdded) {
+                mistakeCards.push(JSON.parse(JSON.stringify(card)));
+            }
+        }
+
+        replaceBlanksWithAnswers();
+    }
+
+    updateProgressIndicators();
+}
+
+function requeueCard() {
+    const card = cards[currentIndex];
+    const newCard = JSON.parse(JSON.stringify(card));
+    cards.push(newCard);
+    totalCardsSpan.textContent = cards.length;
+    updateProgressIndicators();
 }
 
 // Card flip handler
@@ -71,7 +265,14 @@ nextBtn.addEventListener('click', (e) => {
         currentIndex++;
         showCard(currentIndex);
     } else {
-        showCompleteScreen();
+        // Check if all cards are answered
+        const unansweredIndex = findFirstUnanswered();
+        if (unansweredIndex !== -1) {
+            // Show countdown and redirect
+            showUnansweredWarning(unansweredIndex);
+        } else {
+            showCompleteScreen();
+        }
     }
 });
 
@@ -103,6 +304,9 @@ async function loadDefinitionCards() {
         }
 
         cards = response.data;
+        if (response.targetLanguage) {
+            targetLanguage = response.targetLanguage.toUpperCase();
+        }
 
         if (!cards || cards.length === 0) {
             showError(i18n.getMessage('error_no_words'));
@@ -112,7 +316,9 @@ async function loadDefinitionCards() {
         loadingScreen.classList.add('hidden');
         cardContainer.classList.remove('hidden');
 
+        originalCardsCount = cards.length; // Store original count
         totalCardsSpan.textContent = cards.length;
+        initializeProgressIndicators();
         showCard(0);
 
     } catch (error) {
@@ -133,19 +339,67 @@ function showCard(index) {
         isFlipped = false;
     }
 
+    // Initialize state if needed
+    if (!cardStates[index]) {
+        cardStates[index] = {
+            frontAnswered: false,
+            backAnswered: false,
+            frontCorrect: false,
+            backCorrect: false,
+            frontMode: 'manual',
+            backMode: 'manual',
+            frontInputValue: '',
+            backInputValue: ''
+        };
+    }
+
+    frontAnswered = cardStates[index].frontAnswered;
+    backAnswered = cardStates[index].backAnswered;
+    frontMode = cardStates[index].frontMode || 'manual';
+    backMode = cardStates[index].backMode || 'manual';
+
+    setMode('front', frontMode);
+    setMode('back', backMode);
+
+    // Reset inputs
+    ['front', 'back'].forEach(side => {
+        const input = document.getElementById(`${side}-input`);
+        const submit = document.getElementById(`${side}-submit`);
+
+        if (side === 'front') {
+            input.value = cardStates[index].frontInputValue || '';
+        } else {
+            input.value = cardStates[index].backInputValue || '';
+        }
+
+        input.disabled = false;
+        input.className = 'manual-input';
+        submit.disabled = false;
+    });
+
     // Update English side
-    document.getElementById('card-word-en').textContent = card.word;
+    const defEn = card.definitions[0]?.meaning_en || 'No definition';
+    document.getElementById('card-hint-en').textContent = defEn;
     document.getElementById('card-transcription').textContent = card.transcription || '';
+    document.getElementById('card-transcription').classList.add('hidden');
 
     // Update Russian side
-    document.getElementById('card-word-ru').textContent = card.word_ru || card.word;
+    const defRu = card.definitions[0]?.meaning_ru || 'Нет определения';
+    document.getElementById('card-hint-ru').textContent = defRu;
     document.getElementById('card-transcription-ru').textContent = card.transcription || '';
+    document.getElementById('card-transcription-ru').classList.add('hidden');
 
-    // Render English definitions
-    renderDefinitions('definitions-container-en', card.definitions, 'en');
+    // Update badges
+    document.getElementById('front-lang').textContent = 'EN';
+    document.getElementById('back-lang').textContent = targetLanguage;
 
-    // Render Russian definitions
-    renderDefinitions('definitions-container-ru', card.definitions, 'ru');
+    // Render Examples
+    renderExamples('examples-container-en', card.definitions, 'en');
+    renderExamples('examples-container-ru', card.definitions, 'ru');
+
+    // Render Options
+    renderOptions('front-options', card.distractors_en, card.word, 'en');
+    renderOptions('back-options', card.distractors_ru, card.word_ru || card.word, 'ru');
 
     // Scale card to fit viewport
     setTimeout(() => {
@@ -153,7 +407,13 @@ function showCard(index) {
     }, 100);
 
     // Update progress
-    currentCardSpan.textContent = index + 1;
+    if (isReviewingMistakes && index >= originalCardsCount) {
+        // During mistake review, show relative index (1, 2, 3...)
+        currentCardSpan.textContent = (index - originalCardsCount) + 1;
+    } else {
+        currentCardSpan.textContent = index + 1;
+    }
+    updateProgressIndicators();
 
     // Update button states
     prevBtn.disabled = index === 0;
@@ -208,56 +468,163 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Render definitions
-function renderDefinitions(containerId, definitions, language) {
+// Render examples
+function renderExamples(containerId, definitions, language) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
-
     if (!definitions || definitions.length === 0) return;
 
-    definitions.forEach((def, idx) => {
-        const defBlock = document.createElement('div');
-        defBlock.className = 'definition-block';
-
-        // Definition text
-        const defText = document.createElement('div');
-        defText.className = 'definition-text';
-        const meaning = language === 'en' ? (def.meaning_en || def.meaning) : (def.meaning_ru || def.meaning);
-        defText.textContent = meaning;
-        defBlock.appendChild(defText);
-
-        // Examples
+    definitions.forEach(def => {
         const examplesKey = language === 'en' ? 'examples_en' : 'examples_ru';
         const examples = def[examplesKey] || def.examples || [];
 
-        if (examples && examples.length > 0) {
-            const examplesList = document.createElement('div');
-            examplesList.className = 'examples-list';
+        examples.forEach(example => {
+            const div = document.createElement('div');
+            div.className = 'example-item';
+            div.innerHTML = example.text.replace(/____/g, '<span class="example-blank">____</span>');
+            container.appendChild(div);
+        });
+    });
+}
 
-            examples.forEach(example => {
-                const exampleItem = document.createElement('div');
-                exampleItem.className = 'example-item';
+// Render options
+function renderOptions(containerId, distractors, correctAnswer, language) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
 
-                // Replace word with blank and highlight
-                const exampleHTML = example.text.replace(/____/g, '<span class="example-blank">____</span>');
-                exampleItem.innerHTML = exampleHTML;
+    if (!distractors) return;
 
-                // Add preposition note if exists
-                if (example.preposition) {
-                    const prepNote = document.createElement('span');
-                    prepNote.className = 'preposition-note';
-                    prepNote.textContent = `+ ${example.preposition}`;
-                    exampleItem.appendChild(prepNote);
-                }
+    // Combine and shuffle
+    const options = [...distractors, correctAnswer].sort(() => Math.random() - 0.5);
 
-                examplesList.appendChild(exampleItem);
+    const isAnswered = language === 'en' ? frontAnswered : backAnswered;
+
+    options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = option;
+
+        if (isAnswered) {
+            btn.disabled = true;
+            if (option === correctAnswer) btn.classList.add('correct');
+        } else {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleOptionClick(btn, option, correctAnswer, language, container);
             });
-
-            defBlock.appendChild(examplesList);
         }
 
-        container.appendChild(defBlock);
+        container.appendChild(btn);
     });
+}
+
+function handleOptionClick(btn, selectedOption, correctAnswer, language, container) {
+    const allButtons = container.querySelectorAll('.option-btn');
+    allButtons.forEach(b => b.disabled = true);
+
+    const isCorrect = selectedOption === correctAnswer;
+
+    if (language === 'en') {
+        frontAnswered = true;
+        frontCorrect = isCorrect;
+        cardStates[currentIndex] = cardStates[currentIndex] || {};
+        cardStates[currentIndex].frontAnswered = true;
+        cardStates[currentIndex].frontCorrect = isCorrect;
+    } else {
+        backAnswered = true;
+        backCorrect = isCorrect;
+        cardStates[currentIndex] = cardStates[currentIndex] || {};
+        cardStates[currentIndex].backAnswered = true;
+        cardStates[currentIndex].backCorrect = isCorrect;
+    }
+
+    if (isCorrect) {
+        btn.classList.add('correct');
+    } else {
+        btn.classList.add('wrong');
+        allButtons.forEach(b => {
+            if (b.textContent === correctAnswer) b.classList.add('correct');
+        });
+    }
+
+    // Show transcription
+    const transId = language === 'en' ? 'card-transcription' : 'card-transcription-ru';
+    document.getElementById(transId).classList.remove('hidden');
+
+    // Always update the manual input to synchronize both modes
+    const inputId = language === 'en' ? 'front-input' : 'back-input';
+    const input = document.getElementById(inputId);
+    const submitBtn = document.getElementById(language === 'en' ? 'front-submit' : 'back-submit');
+    if (input) {
+        input.disabled = true;
+        submitBtn.disabled = true;
+
+        if (isCorrect) {
+            // Fill with the correct answer and mark as correct
+            input.value = correctAnswer;
+            input.classList.add('correct');
+        } else {
+            // Fill with selected wrong answer and show correct answer
+            input.value = `${selectedOption} (${correctAnswer})`;
+            input.classList.add('wrong');
+        }
+    }
+
+    // If both sides answered, track mistakes and replace blanks
+    if (frontAnswered && backAnswered) {
+        const bothCorrect = frontCorrect && backCorrect;
+
+        // Track mistakes (only during main session, not during mistake review)
+        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalCardsCount) {
+            const card = cards[currentIndex];
+            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+            if (!alreadyAdded) {
+                mistakeCards.push(JSON.parse(JSON.stringify(card)));
+            }
+        }
+
+        replaceBlanksWithAnswers();
+    }
+
+    updateProgressIndicators();
+}
+
+// Replace blanks with correct answers in examples
+function replaceBlanksWithAnswers() {
+    const card = cards[currentIndex];
+
+    // Replace blanks in English examples
+    const examplesContainerEn = document.getElementById('examples-container-en');
+    if (examplesContainerEn && card.definitions) {
+        examplesContainerEn.innerHTML = '';
+        card.definitions.forEach(def => {
+            const examples = def.examples_en || def.examples || [];
+            examples.forEach(example => {
+                const div = document.createElement('div');
+                div.className = 'example-item';
+                const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${card.word}</strong>`);
+                div.innerHTML = filled;
+                examplesContainerEn.appendChild(div);
+            });
+        });
+    }
+
+    // Replace blanks in Russian/target language examples
+    const examplesContainerRu = document.getElementById('examples-container-ru');
+    if (examplesContainerRu && card.definitions) {
+        examplesContainerRu.innerHTML = '';
+        card.definitions.forEach(def => {
+            const examples = def.examples_ru || def.examples || [];
+            examples.forEach(example => {
+                const div = document.createElement('div');
+                div.className = 'example-item';
+                const wordToFill = card.word_ru || card.word;
+                const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
+                div.innerHTML = filled;
+                examplesContainerRu.appendChild(div);
+            });
+        });
+    }
 }
 
 // Show error screen
@@ -271,7 +638,284 @@ function showError(message) {
 
 // Show complete screen
 function showCompleteScreen() {
-    cardContainer.classList.add('hidden');
-    completeScreen.classList.remove('hidden');
-    errorMessage.textContent = i18n.getMessage('def_cards_reviewed_all');
+    // Check if we have mistakes to review and haven't started mistake review yet
+    if (!isReviewingMistakes && mistakeCards.length > 0) {
+        showMistakeReviewScreen();
+    } else {
+        // Show final complete screen
+        cardContainer.classList.add('hidden');
+        completeScreen.classList.remove('hidden');
+    }
 }
+
+function showMistakeReviewScreen() {
+    const feedbackMsg = document.getElementById('feedback-message');
+    if (!feedbackMsg) {
+        // Create feedback message element if it doesn't exist
+        const newFeedback = document.createElement('div');
+        newFeedback.id = 'feedback-message';
+        newFeedback.className = 'feedback-message';
+        cardContainer.insertBefore(newFeedback, cardContainer.firstChild);
+    }
+
+    const msg = document.getElementById('feedback-message');
+    if (msg) {
+        msg.className = 'feedback-message';
+        msg.style.background = 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)';
+        msg.style.fontSize = '20px';
+        msg.style.padding = '20px';
+        msg.style.borderRadius = '16px';
+        msg.style.marginBottom = '24px';
+        msg.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 32px; margin-bottom: 12px;">📝</div>
+                <div style="font-weight: 700; margin-bottom: 8px;">${i18n.getMessage('mistakes_review_title')}</div>
+                <div style="font-size: 16px; opacity: 0.9;">${i18n.getMessage('mistakes_review_subtitle')}</div>
+                <div style="margin-top: 16px; font-size: 18px; font-weight: 600;">${mistakeCards.length} ${mistakeCards.length === 1 ? i18n.getMessage('card_singular') : i18n.getMessage('card_plural')}</div>
+            </div>
+        `;
+        msg.classList.remove('hidden');
+
+        // Auto-start mistake review after 3 seconds
+        setTimeout(() => {
+            startMistakeReview();
+        }, 3000);
+    }
+}
+
+function startMistakeReview() {
+    isReviewingMistakes = true;
+
+    // Reset card states for mistake cards only
+    const mistakeStartIndex = cards.length;
+    mistakeCards.forEach((card, index) => {
+        cards.push(card);
+        cardStates[mistakeStartIndex + index] = {
+            frontAnswered: false,
+            backAnswered: false,
+            frontCorrect: false,
+            backCorrect: false
+        };
+    });
+
+    // Update total count to show mistake cards count
+    totalCardsSpan.textContent = mistakeCards.length;
+
+    // Recreate progress sidebar for mistake cards
+    initializeMistakeProgressIndicators();
+
+    // Navigate to first mistake card
+    currentIndex = mistakeStartIndex;
+
+    // Reset current card counter to 1
+    currentCardSpan.textContent = 1;
+
+    showCard(currentIndex);
+
+    // Hide the feedback message
+    const feedbackMsg = document.getElementById('feedback-message');
+    if (feedbackMsg) {
+        feedbackMsg.classList.add('hidden');
+    }
+}
+
+function initializeMistakeProgressIndicators() {
+    const sidebar = document.getElementById('progress-sidebar');
+    if (!sidebar) return;
+
+    sidebar.innerHTML = '';
+
+    mistakeCards.forEach((_, index) => {
+        const box = document.createElement('div');
+        box.className = 'progress-box unanswered';
+        const number = document.createElement('span');
+        number.className = 'progress-box-number';
+        number.textContent = index + 1;
+        box.appendChild(number);
+        const actualIndex = originalCardsCount + index;
+        box.dataset.index = actualIndex;
+        box.addEventListener('click', () => {
+            currentIndex = actualIndex;
+            showCard(actualIndex);
+        });
+        sidebar.appendChild(box);
+    });
+}
+
+// Adjust card height dynamically
+function adjustCardHeight() {
+    setTimeout(() => {
+        const card = document.getElementById('definition-card');
+        if (!card) return;
+
+        // Get both faces
+        const frontFace = card.querySelector('.card-front');
+        const backFace = card.querySelector('.card-back');
+
+        if (!frontFace || !backFace) return;
+
+        // Calculate heights
+        const frontHeight = frontFace.scrollHeight;
+        const backHeight = backFace.scrollHeight;
+
+        // Use the larger height
+        const maxHeight = Math.max(frontHeight, backHeight, 500);
+        card.style.minHeight = `${maxHeight}px`;
+    }, 50);
+}
+
+// Initialize progress indicators
+function initializeProgressIndicators() {
+    const sidebar = document.getElementById('progress-sidebar');
+    if (!sidebar) return;
+
+    sidebar.innerHTML = '';
+
+    // Only show progress for original cards, not mistake review cards
+    const cardsToShow = Math.min(cards.length, originalCardsCount || cards.length);
+
+    for (let index = 0; index < cardsToShow; index++) {
+        const box = document.createElement('div');
+        box.className = 'progress-box unanswered';
+        const number = document.createElement('span');
+        number.className = 'progress-box-number';
+        number.textContent = index + 1;
+        box.appendChild(number);
+        box.dataset.index = index;
+        box.addEventListener('click', () => {
+            // Only allow navigation to original cards
+            if (index < originalCardsCount) {
+                currentIndex = index;
+                showCard(index);
+            }
+        });
+        sidebar.appendChild(box);
+    }
+}
+
+// Update progress indicators
+function updateProgressIndicators() {
+    const sidebar = document.getElementById('progress-sidebar');
+    if (!sidebar) return;
+
+    const boxes = sidebar.querySelectorAll('.progress-box');
+    boxes.forEach((box) => {
+        // Get actual card index from data attribute
+        const actualIndex = parseInt(box.dataset.index);
+        const state = cardStates[actualIndex];
+
+        // Remove all state classes
+        box.classList.remove('unanswered', 'correct', 'incorrect', 'partial', 'active',
+            'partial-left-correct', 'partial-left-incorrect', 'partial-right-correct', 'partial-right-incorrect');
+
+        if (state && state.frontAnswered && state.backAnswered) {
+            // Both answered - show full square
+            if (state.frontCorrect && state.backCorrect) {
+                box.classList.add('correct');
+            } else if (!state.frontCorrect && !state.backCorrect) {
+                box.classList.add('incorrect');
+            } else {
+                // Mixed result - use base color and triangles
+                box.classList.add('unanswered'); // neutral background
+                if (state.frontCorrect) {
+                    box.classList.add('partial-left-correct');
+                } else {
+                    box.classList.add('partial-left-incorrect');
+                }
+                if (state.backCorrect) {
+                    box.classList.add('partial-right-correct');
+                } else {
+                    box.classList.add('partial-right-incorrect');
+                }
+            }
+        } else if (state && (state.frontAnswered || state.backAnswered)) {
+            // Only one side answered - show triangle
+            box.classList.add('unanswered'); // neutral background
+            if (state.frontAnswered) {
+                if (state.frontCorrect) {
+                    box.classList.add('partial-left-correct');
+                } else {
+                    box.classList.add('partial-left-incorrect');
+                }
+            }
+            if (state.backAnswered) {
+                if (state.backCorrect) {
+                    box.classList.add('partial-right-correct');
+                } else {
+                    box.classList.add('partial-right-incorrect');
+                }
+            }
+        } else {
+            box.classList.add('unanswered');
+        }
+
+        // Highlight current
+        if (actualIndex === currentIndex) {
+            box.classList.add('active');
+        }
+    });
+}
+
+// Find first unanswered card (only in original cards, not mistake review)
+function findFirstUnanswered() {
+    const checkLimit = isReviewingMistakes ? cards.length : originalCardsCount;
+    for (let i = 0; i < checkLimit; i++) {
+        const state = cardStates[i];
+        if (!state || !state.frontAnswered || !state.backAnswered) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Show unanswered warning with countdown
+function showUnansweredWarning(unansweredIndex) {
+    const feedbackMsg = document.getElementById('feedback-message');
+    if (!feedbackMsg) {
+        // Create feedback message element if it doesn't exist
+        const newFeedback = document.createElement('div');
+        newFeedback.id = 'feedback-message';
+        newFeedback.className = 'feedback-message';
+        cardContainer.insertBefore(newFeedback, cardContainer.firstChild);
+    }
+
+    const msg = document.getElementById('feedback-message');
+    if (msg) {
+        msg.className = 'feedback-message failure';
+        let countdown = 3;
+        msg.textContent = `${i18n.getMessage('def_cards_unanswered_warning') || 'You have unanswered cards! Redirecting in'} ${countdown}...`;
+        msg.classList.remove('hidden');
+
+        const interval = setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+                clearInterval(interval);
+                msg.classList.add('hidden');
+                currentIndex = unansweredIndex;
+                showCard(unansweredIndex);
+            } else {
+                msg.textContent = `${i18n.getMessage('def_cards_unanswered_warning') || 'You have unanswered cards! Redirecting in'} ${countdown}...`;
+            }
+        }, 1000);
+    }
+}
+
+// Add fade animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in-content {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+`;
+document.head.appendChild(style);
