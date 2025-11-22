@@ -40,13 +40,17 @@ export class StorageService {
     // Category Management
     async getCategories() {
         const result = await chrome.storage.local.get('categories');
-        return result.categories || ['default'];
+        const categories = result.categories || ['default'];
+        // Always deduplicate to prevent UI issues
+        return [...new Set(categories)];
     }
 
     async addCategory(categoryName) {
-        const categories = await this.getCategories();
+        let categories = await this.getCategories(); // Already deduplicated
         if (!categories.includes(categoryName)) {
             categories.push(categoryName);
+            // Deduplicate again before saving as extra safety
+            categories = [...new Set(categories)];
             await chrome.storage.local.set({ categories });
         }
     }
@@ -69,6 +73,52 @@ export class StorageService {
         await chrome.storage.local.set({ learningList: updatedList });
     }
 
+    async renameCategory(oldName, newName) {
+        if (oldName === 'default') return; // Cannot rename default
+        
+        const categories = await this.getCategories();
+        const index = categories.indexOf(oldName);
+        if (index !== -1) {
+            categories[index] = newName;
+            await chrome.storage.local.set({ categories });
+
+            // Update words
+            const list = await this.getLearningList();
+            const updatedList = list.map(w => {
+                if (w.category === oldName) {
+                    w.category = newName;
+                }
+                return w;
+            });
+            await chrome.storage.local.set({ learningList: updatedList });
+
+            // Update active status if exists
+            const settings = await this.getCategorySettings();
+            if (settings[oldName]) {
+                settings[newName] = settings[oldName];
+                delete settings[oldName];
+                await chrome.storage.local.set({ categorySettings: settings });
+            }
+        }
+    }
+
+    async getCategorySettings() {
+        const result = await chrome.storage.local.get('categorySettings');
+        return result.categorySettings || {};
+    }
+
+    async setCategoryActive(categoryName, isActive) {
+        const settings = await this.getCategorySettings();
+        settings[categoryName] = { ...settings[categoryName], active: isActive };
+        await chrome.storage.local.set({ categorySettings: settings });
+    }
+
+    async isCategoryActive(categoryName) {
+        const settings = await this.getCategorySettings();
+        // Default to true if not set
+        return settings[categoryName]?.active !== false;
+    }
+
     async getWordsByCategory(category) {
         const list = await this.getLearningList();
         return list.filter(w => w.category === category || (!w.category && category === 'default'));
@@ -78,7 +128,16 @@ export class StorageService {
         const result = await chrome.storage.local.get('learningList');
         const list = result.learningList || [];
         const now = Date.now();
-        return list.filter(w => w.nextReview <= now);
+
+        // Filter by active categories
+        const settings = await this.getCategorySettings();
+        const activeList = list.filter(w => {
+            const cat = w.category || 'default';
+            // Default is active if not explicitly set to false
+            return settings[cat]?.active !== false;
+        });
+
+        return activeList.filter(w => w.nextReview <= now);
     }
 
     async updateWordStats(wordId, success) {
@@ -109,7 +168,13 @@ export class StorageService {
 
     async getProblemWords() {
         const list = await this.getLearningList();
-        return list.filter(w => (w.wrongCount || 0) > 0);
+        // Also filter problem words by active category? Probably yes.
+        const settings = await this.getCategorySettings();
+        const activeList = list.filter(w => {
+            const cat = w.category || 'default';
+            return settings[cat]?.active !== false;
+        });
+        return activeList.filter(w => (w.wrongCount || 0) > 0);
     }
 
     async exportData() {

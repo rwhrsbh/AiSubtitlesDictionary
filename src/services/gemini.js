@@ -111,29 +111,32 @@ export class GeminiService {
         const prompt = `
     Create fill-in-the-blank flashcard exercises for EACH of the following words: ${wordList}
 
-    IMPORTANT: For EACH word, first detect what language it is in:
-    - If the word is in ENGLISH: create English sentence on the "front" side and ${targetLang} sentence on the "back" side
-    - If the word is in ${targetLang}: create ${targetLang} sentence on the "front" side and English sentence on the "back" side
+    CRITICAL LANGUAGE DETECTION: For EACH word, you MUST first detect what language it is in (English, Russian, Ukrainian, Spanish, German, French, ANY language):
+    - If word is in ENGLISH → create English sentence on "front" (en) and ${targetLang} sentence on "back" (ru)
+    - If word is in ${targetLang} → create ${targetLang} sentence on "front" (en) and English sentence on "back" (ru)  
+    - If word is in ANY OTHER language → create sentence in that language on "front" (en) and ${targetLang} sentence on "back" (ru)
+
+    IMPORTANT: Do NOT assume all words are English. Each word could be in ANY language!
 
     For each exercise, create:
-    1. A sentence in the word's ORIGINAL language with ONE word replaced by _____ (blank) - this goes on "front" (en)
-    2. A sentence in the OPPOSITE language with the translation of the word replaced by _____ (blank) - this goes on "back" (ru)
-    3. The correct missing word in its original language
-    4. Three incorrect but plausible options (distractors) in the ORIGINAL language of the word
-    5. Three incorrect but plausible options (distractors) in the OPPOSITE language (translations)
-    6. A subtle hint in the ORIGINAL language (1-2 sentences) that helps without giving away the answer
-    7. A subtle hint in the OPPOSITE language (1-2 sentences) that helps without giving away the answer
-    8. A full explanation in the ORIGINAL language of why the correct answer fits and why other options don't work
-    9. A full explanation in the OPPOSITE language of why the correct answer fits and why other options don't work
+    1. A sentence in the word's ORIGINAL language with the word replaced by _____ - this goes on "front" (en field)
+    2. A sentence in the OPPOSITE language with translation replaced by _____ - this goes on "back" (ru field)
+    3. The correct missing word in its ORIGINAL language
+    4. Three distractors in the word's ORIGINAL language (options_en) - plausible but wrong
+    5. Three distractors in the OPPOSITE language (options_ru) - translations of the original distractors
+    6. A subtle hint in the ORIGINAL language
+    7. A subtle hint in the OPPOSITE language
+    8. Explanation in ORIGINAL language  
+    9. Explanation in OPPOSITE language
 
     Requirements:
     - Use different words for each exercise
-    - Sentences should be natural and practical
-    - Both versions should have the blank in the corresponding position
+    - Sentences should be natural and practical IN THEIR RESPECTIVE LANGUAGES
+    - Both versions should have the blank in corresponding position
     - Make sentences interesting and memorable
-    - Distractors should be similar in meaning or context but clearly wrong
+    - Distractors should be in the same language as the word they're meant to replace
     - Hints should guide thinking without revealing the answer
-    - Explanations should teach the word usage and explain why each distractor is incorrect
+    - Explanations should teach the word usage
 
         CRITICAL VALIDATION RULES FOR ${targetLang.toUpperCase()} TRANSLATIONS:
         - The ${targetLang} translation of the correct English word MUST be the ONLY logically and semantically correct answer for the ${targetLang} sentence
@@ -185,10 +188,106 @@ export class GeminiService {
         if (data.error) throw new Error(data.error.message);
 
         const text = data.candidates[0].content.parts[0].text;
-        // Clean up markdown code blocks if present
-        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        let jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Fix unquoted transcriptions
+        jsonStr = jsonStr.replace(/"transcription"\s*:\s*\/([^\/]+)\//g, '"transcription": "/$1/"');
         return JSON.parse(jsonStr);
     }
+
+    async generateSimpleFlashcards(words, apiKey, model = 'gemini-2.0-flash', language = 'ru') {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const languageNames = {
+            en: 'English',
+            ru: 'Russian',
+            uk: 'Ukrainian'
+        };
+        const targetLang = languageNames[language] || 'Russian';
+
+        const shuffledWords = words.sort(() => Math.random() - 0.5);
+        const wordList = shuffledWords.map(w => w.word).join(', ');
+
+        const prompt = `
+    Create simple translation flashcards for these words: ${wordList}
+
+    CRITICAL: For EACH word, you MUST:
+    1. FIRST detect what language the word is in (English, Russian, Ukrainian, Spanish, French, German, etc.)
+    2. Generate content based on the detected language:
+       - If word is in ENGLISH → translation should be in ${targetLang}, distractors_en should be English synonyms/related words
+       - If word is in ${targetLang} → translation should be in English, distractors_ru should be ${targetLang} synonyms/related words  
+       - If word is in ANY OTHER language → translation should be in ${targetLang}, distractors_en should be in the SAME language as the word
+
+    For each word, provide:
+    1. The word itself (in its ORIGINAL language - could be ANY language, not just English!)
+    2. Translation to ${targetLang} (if word is English/other) OR to English (if word is ${targetLang})
+    3. Phonetic transcription (IPA format) of the word in its ORIGINAL language
+    4. One natural example sentence using the word (in the word's ORIGINAL language)
+    5. Three distractors in the word's ORIGINAL language (distractors_en) - synonyms or related words
+    6. Three distractors in the OPPOSITE language (distractors_ru) - translations of the original language distractors
+
+    IMPORTANT RULES:
+    - distractors_en should ALWAYS be in the SAME language as the original word (e.g., if word is "привет" in Russian, distractors_en should be Russian words like "пока", "здравствуй", "до свидания")
+    - distractors_ru should be ${targetLang} translations of the distractors_en
+    - The field names stay "distractors_en" and "distractors_ru" regardless of the actual word language (this is just for backwards compatibility)
+
+    Return ONLY a JSON array with this structure:
+    [
+      {
+        "word": "adventure",  // Original word in ANY language
+        "translation": "приключение",  // Translation to opposite language
+        "transcription": "/ədˈventʃər/",  // IMPORTANT: transcription MUST be a string in quotes
+        "example": "We risked losing a lot of money in this adventure.",
+        "distractors_en": ["experience", "journey", "challenge"],  // In SAME language as word
+        "distractors_ru": ["опыт", "путешествие", "вызов"]  // In OPPOSITE language
+      },
+      {
+        "word": "привет",  // Russian word example
+        "translation": "hello",
+        "transcription": "/prʲɪˈvʲet/",  // IMPORTANT: transcription MUST be a string in quotes
+        "example": "Привет, как дела?",
+        "distractors_en": ["пока", "здравствуй", "до свидания"],  // Russian distractors
+        "distractors_ru": ["bye", "greetings", "goodbye"]  // English translations
+      }
+    ]
+
+    CRITICAL JSON FORMATTING:
+    - ALL field values MUST be valid JSON strings (in double quotes)
+    - Transcription MUST be a quoted string like "/word/" NOT /word/ without quotes
+    - Do NOT use unquoted values or regex-like syntax
+
+    VALIDATION:
+    - Include ALL words from the list
+    - NEVER assume all words are English - detect language for each word
+    - Distractors should be related but clearly different in meaning
+    - Example sentence should be practical and natural in the word's language
+    - Distractors should be single words or short phrases (max 3 words)
+
+    Return ONLY the JSON array, no explanations.
+    `;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: prompt }]
+                }]
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const text = data.candidates[0].content.parts[0].text;
+        let jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        // Fix common JSON issues from Gemini
+        // Fix unquoted transcriptions like: "transcription": /word/
+        jsonStr = jsonStr.replace(/"transcription"\s*:\s*\/([^\/]+)\//g, '"transcription": "/$1/"');
+
+        return JSON.parse(jsonStr);
+    }
+
 
     async generateDefinitionCards(words, apiKey, model = 'gemini-2.0-flash', language = 'ru') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -207,29 +306,33 @@ export class GeminiService {
         const prompt = `
         Create BILINGUAL definition cards for these words: ${wordList}
 
-        IMPORTANT: For EACH word, first detect what language it is in:
-        - If the word is in ENGLISH: provide English definitions and ${targetLang} translations
-        - If the word is in ${targetLang}: provide ${targetLang} definitions and English translations
+        CRITICAL LANGUAGE DETECTION: For EACH word you receive, you MUST:
+        1. FIRST detect what language the word is in (could be English, Russian, Ukrainian, Spanish, French, German, Japanese, Chinese, ANY language!)
+        2. Generate content appropriately:
+           - If word is in ENGLISH → provide English definitions, examples, and ${targetLang} translations
+           - If word is in ${targetLang} → provide ${targetLang} definitions, examples, and English translations
+           - If word is in ANY OTHER language → provide definitions in that language and ${targetLang} translations
+
+        IMPORTANT: NEVER assume all words are English! Detect each word's language individually.
 
         For each word, provide:
-        1. The word itself (in its ORIGINAL language)
-        2. Translation to the opposite language (if English word, translate to ${targetLang}; if ${targetLang} word, translate to English)
+        1. The word itself (in its ORIGINAL language - could be ANY language!)
+        2. Translation to opposite language (if English→${targetLang}, if ${targetLang}→English, if other→${targetLang})
         3. Phonetic transcription (IPA format) of the ORIGINAL word
-        4. Three incorrect but plausible options (distractors) in the word's ORIGINAL language
-        5. Three incorrect but plausible options (distractors) in the OPPOSITE language (translations of the distractors)
-        6. Multiple definitions IN BOTH LANGUAGES (if the word has different meanings)
+        4. Three distractors in the word's ORIGINAL language (same language as the word!)
+        5. Three distractors in the OPPOSITE language (translations of the original distractors)
+        6. Multiple definitions IN BOTH LANGUAGES
         7. For each definition:
-           - A clear explanation of the meaning in the word's ORIGINAL language
-           - A clear explanation of the meaning in the OPPOSITE language
-           - 1-2 example sentences in the ORIGINAL language where the word is replaced with "____"
-           - 1-2 example sentences in the OPPOSITE language (translations) where the word is replaced with "____"
-           - For VERBS: if the verb commonly requires a preposition, include examples showing different prepositions
+           - Clear explanation in the word's ORIGINAL language
+           - Translation of explanation to opposite language  
+           - 1-2 example sentences in ORIGINAL language with word replaced by "____"
+           - 1-2 translated example sentences in OPPOSITE language
+           - For VERBS: show different preposition usages if applicable
         
         SPECIAL RULES FOR VERBS:
         - If a verb ALWAYS uses the same preposition (e.g., "depend on"), show ONE example with that preposition
         - If a verb can use DIFFERENT prepositions with different meanings (e.g., "argue with someone" vs "argue against something"), show MULTIPLE examples demonstrating each usage
         - If a verb doesn't require a preposition (e.g., "deny"), just show regular examples
-        - Mark the preposition used in each example
 
         Return ONLY a JSON array with this structure (NOTE: use 'ru' keys for ${targetLang} content):
         [
@@ -335,8 +438,9 @@ export class GeminiService {
         if (data.error) throw new Error(data.error.message);
 
         const text = data.candidates[0].content.parts[0].text;
-        // Clean up markdown code blocks if present
-        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        let jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Fix unquoted transcriptions
+        jsonStr = jsonStr.replace(/"transcription"\s*:\s*\/([^\/]+)\//g, '"transcription": "/$1/"');
         return JSON.parse(jsonStr);
     }
 }

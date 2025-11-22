@@ -14,7 +14,9 @@
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
-    "*://generativelanguage.googleapis.com/*"
+    "*://generativelanguage.googleapis.com/*",
+    "*://rezka.ag/*",
+    "*://*.voidboost.com/*"
   ],
   "background": {
     "service_worker": "src/background/background.js",
@@ -27,14 +29,29 @@
       ],
       "js": [
         "src/content/i18n_lib.js",
-        "src/content/youtube_injector.js",
         "src/content/subtitle_renderer.js",
+        "src/content/youtube_injector.js",
         "src/content/word_popup.js"
       ],
       "css": [
         "src/content/styles.css"
       ],
       "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "*://rezka.ag/*"
+      ],
+      "js": [
+        "src/content/i18n_lib.js",
+        "src/content/subtitle_renderer.js",
+        "src/content/rezka_injector.js",
+        "src/content/word_popup.js"
+      ],
+      "css": [
+        "src/content/styles.css"
+      ],
+      "run_at": "document_start"
     }
   ],
   "action": {

@@ -18,17 +18,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadReviewTab();
     }
 
-    await loadWordsTab();
     await loadSettings();
 
     document.getElementById('save-settings').addEventListener('click', saveSettings);
     document.getElementById('save-settings').addEventListener('click', saveSettings);
     document.getElementById('start-review-btn').addEventListener('click', startReview);
     document.getElementById('start-flashcards-btn').addEventListener('click', startFlashcards);
+    document.getElementById('start-context-cards-btn').addEventListener('click', startContextCards);
     document.getElementById('start-definition-cards-btn').addEventListener('click', startDefinitionCards);
+    document.getElementById('add-category-btn').addEventListener('click', addNewCategory);
     document.getElementById('word-search').addEventListener('input', filterWords);
-    document.getElementById('category-filter').addEventListener('change', filterWords);
-    document.getElementById('manage-categories-btn').addEventListener('click', manageCategories);
     document.getElementById('export-data-btn').addEventListener('click', handleExportData);
     document.getElementById('import-data-btn').addEventListener('click', () => {
         document.getElementById('import-file-input').click();
@@ -139,167 +138,206 @@ function startFlashcards() {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/flashcards/flashcards.html') });
 }
 
+function startContextCards() {
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/context-cards/context-cards.html') });
+}
+
 function startDefinitionCards() {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/definition-cards/definition-cards.html') });
 }
 
 // Words Tab
 let allWords = [];
+let expandedCategories = new Set(); // Track expanded state
 
 async function loadWordsTab() {
     allWords = await storage.getLearningList();
-
-    // Load categories into filter
     const categories = await storage.getCategories();
-    const categoryFilter = document.getElementById('category-filter');
-    const allCategoriesText = i18n.getMessage('category_all');
-
-    categoryFilter.innerHTML = `<option value="all">${allCategoriesText}</option>` +
-        categories.map(cat => `<option value="${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</option>`).join('');
 
     const totalWordsText = i18n.getMessage('total_words');
     document.getElementById('word-stats').innerHTML = `${totalWordsText} <span id="total-words">${allWords.length}</span>`;
 
-    if (allWords.length === 0) {
+    if (allWords.length === 0 && categories.length <= 1) { // Only default category and no words
         document.getElementById('no-words').classList.remove('hidden');
         document.getElementById('words-list').innerHTML = '';
     } else {
         document.getElementById('no-words').classList.add('hidden');
-        renderWords(allWords);
+        renderCategories(categories, allWords);
     }
 }
 
-function renderWords(words) {
+async function renderCategories(categories, words) {
     const container = document.getElementById('words-list');
-    container.innerHTML = words.map(w => {
-        const needsPractice = (w.wrongCount || 0) > 0;
-        const cardClass = needsPractice ? 'word-card needs-practice' : 'word-card';
+    container.innerHTML = '';
 
-        return `
+    for (const category of categories) {
+        const categoryWords = words.filter(w => (w.category || 'default') === category);
+        const isActive = await storage.isCategoryActive(category);
+        const isExpanded = expandedCategories.has(category);
+
+        const categoryEl = document.createElement('div');
+        categoryEl.className = 'category-block';
+        categoryEl.dataset.category = category;
+
+        categoryEl.innerHTML = `
+            <div class="category-header">
+                <div class="category-header-left">
+                    <input type="checkbox" class="category-active-checkbox" ${isActive ? 'checked' : ''} title="Include in review">
+                    <span class="category-toggle-icon">${isExpanded ? '▼' : '▶'}</span>
+                    <span class="category-name">${category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                    <span class="category-count">(${categoryWords.length})</span>
+                </div>
+                <div class="category-header-right">
+                    ${category !== 'default' ? `<button class="category-rename-btn" title="Rename">✏️</button>` : ''}
+                    ${category !== 'default' ? `<button class="category-delete-btn" title="Delete">🗑️</button>` : ''}
+                </div>
+            </div>
+            <div class="category-words ${isExpanded ? '' : 'hidden'}">
+                <!-- Words injected here -->
+            </div>
+        `;
+
+        // Render words inside
+        const wordsContainer = categoryEl.querySelector('.category-words');
+        if (categoryWords.length > 0) {
+            wordsContainer.innerHTML = categoryWords.map(w => renderWordCard(w)).join('');
+        } else {
+            wordsContainer.innerHTML = `<div class="empty-category-msg">No words in this category</div>`;
+        }
+
+        container.appendChild(categoryEl);
+
+        // Event Listeners
+        const header = categoryEl.querySelector('.category-header');
+        const checkbox = categoryEl.querySelector('.category-active-checkbox');
+        const toggleIcon = categoryEl.querySelector('.category-toggle-icon');
+        const renameBtn = categoryEl.querySelector('.category-rename-btn');
+        const deleteBtn = categoryEl.querySelector('.category-delete-btn');
+
+        // Toggle Expand/Collapse (clicking header, excluding controls)
+        header.addEventListener('click', (e) => {
+            if (e.target === checkbox || e.target === renameBtn || e.target === deleteBtn) return;
+
+            const isHidden = wordsContainer.classList.contains('hidden');
+            if (isHidden) {
+                wordsContainer.classList.remove('hidden');
+                toggleIcon.textContent = '▼';
+                expandedCategories.add(category);
+            } else {
+                wordsContainer.classList.add('hidden');
+                toggleIcon.textContent = '▶';
+                expandedCategories.delete(category);
+            }
+        });
+
+        // Toggle Active Status
+        checkbox.addEventListener('change', async (e) => {
+            await storage.setCategoryActive(category, e.target.checked);
+            // Reload review tab to update counts
+            await loadReviewTab();
+        });
+
+        // Rename Category
+        if (renameBtn) {
+            renameBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const newName = prompt('Rename category:', category);
+                if (newName && newName.trim() && newName !== category) {
+                    await storage.renameCategory(category, newName.trim().toLowerCase());
+                    await loadWordsTab();
+                }
+            });
+        }
+
+        // Delete Category (only if empty)
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete category "${category}"?`)) {
+                    await storage.deleteCategory(category);
+                    await loadWordsTab();
+                }
+            });
+        }
+
+        // Word Delete Listeners
+        wordsContainer.querySelectorAll('.delete-word-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const wordId = btn.dataset.wordId;
+                await deleteWord(wordId);
+            });
+        });
+
+        // Word Detail Listeners
+        wordsContainer.querySelectorAll('.word-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                showWordDetails(card.dataset.word);
+            });
+        });
+    }
+}
+
+function renderWordCard(w) {
+    const needsPractice = (w.wrongCount || 0) > 0;
+    const cardClass = needsPractice ? 'word-card needs-practice' : 'word-card';
+
+    return `
         <div class="${cardClass}" data-id="${w.id}" data-word="${w.word}">
             <div class="word-card-header">
                 <div class="word-card-word">${w.word}</div>
                 <div class="word-card-transcription">${w.transcription || ''}</div>
             </div>
             <div class="word-card-translation">${w.translation}</div>
-            ${w.example ? `<div class="word-card-example">"${w.example}"</div>` : ''}
             <div class="word-card-stats">
-                <span>📁 ${(w.category || 'default').charAt(0).toUpperCase() + (w.category || 'default').slice(1)}</span>
                 <span>✅ ${w.correctCount || 0}</span>
                 <span>❌ ${w.wrongCount || 0}</span>
-                ${needsPractice ? '<span class="practice-badge">⚠️</span>' : ''}
-                <span>📅 ${new Date(w.addedAt).toLocaleDateString()}</span>
-                <select class="word-category-select" data-word-id="${w.id}">
-                    <!-- Categories will be added dynamically -->
-                </select>
-                <button class="delete-word-btn" data-word-id="${w.id}">🗑️</button>
+                <button class="delete-word-btn" data-word-id="${w.id}" title="Delete Word">🗑️</button>
             </div>
         </div>
     `;
-    }).join('');
-
-    // Add event listeners for delete and category change
-    container.querySelectorAll('.delete-word-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const wordId = btn.dataset.wordId;
-            deleteWord(wordId);
-        });
-    });
-
-    // Add click handler for word cards to show details
-    container.querySelectorAll('.word-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-            // Don't trigger if clicking on select or buttons
-            if (e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON' || e.target.closest('select') || e.target.closest('button')) {
-                return;
-            }
-            const wordText = card.dataset.word;
-            showWordDetails(wordText);
-        });
-    });
-
-    // Load categories into selects
-    loadCategoriesForWords(container);
 }
 
-// Load categories for word category selects
-async function loadCategoriesForWords(container) {
-    const categories = await storage.getCategories();
-
-    container.querySelectorAll('.word-category-select').forEach(select => {
-        const wordId = select.dataset.wordId;
-        const word = allWords.find(w => w.id === wordId);
-        const currentCategory = word?.category || 'default';
-
-        select.innerHTML = categories.map(cat =>
-            `<option value="${cat}" ${cat === currentCategory ? 'selected' : ''}>${cat.charAt(0).toUpperCase() + cat.slice(1)}</option>`
-        ).join('') + '<option value="__new__">+ New Category</option>';
-
-        // Add event listener for category change
-        select.addEventListener('change', async (e) => {
-            const newCategory = e.target.value;
-
-            if (newCategory === '__new__') {
-                const categoryName = prompt('Enter new category name:');
-                if (categoryName && categoryName.trim()) {
-                    const newCat = categoryName.trim().toLowerCase();
-                    await storage.addCategory(newCat);
-
-                    // Reload words tab to refresh all dropdowns
-                    await loadWordsTab();
-
-                    // Find this word's select and set the new category
-                    const updatedSelect = document.querySelector(`.word-category-select[data-word-id="${wordId}"]`);
-                    if (updatedSelect) {
-                        updatedSelect.value = newCat;
-                        // Trigger change to save
-                        await changeWordCategory(wordId, newCat);
-                    }
-                } else {
-                    e.target.value = currentCategory;
-                }
-            } else {
-                await changeWordCategory(wordId, newCategory);
-            }
-        });
-    });
-}
-
-// Change word category
-async function changeWordCategory(wordId, newCategory) {
-    const list = await storage.getLearningList();
-    const updatedList = list.map(w => {
-        if (w.id === wordId) {
-            w.category = newCategory;
-        }
-        return w;
-    });
-    await chrome.storage.local.set({ learningList: updatedList });
-    await loadWordsTab();
+async function addNewCategory() {
+    const name = prompt('Enter new category name:');
+    if (name && name.trim()) {
+        await storage.addCategory(name.trim().toLowerCase());
+        await loadWordsTab();
+    }
 }
 
 function filterWords() {
     const searchQuery = document.getElementById('word-search').value.toLowerCase();
-    const categoryFilter = document.getElementById('category-filter').value;
+    const container = document.getElementById('words-list');
 
-    let filtered = allWords;
+    container.querySelectorAll('.category-block').forEach(block => {
+        const words = block.querySelectorAll('.word-card');
+        let hasVisibleWords = false;
 
-    // Filter by category
-    if (categoryFilter !== 'all') {
-        filtered = filtered.filter(w => (w.category || 'default') === categoryFilter);
-    }
+        words.forEach(card => {
+            const wordText = card.dataset.word.toLowerCase();
+            const translation = card.querySelector('.word-card-translation').textContent.toLowerCase();
 
-    // Filter by search query
-    if (searchQuery) {
-        filtered = filtered.filter(w =>
-            w.word.toLowerCase().includes(searchQuery) ||
-            w.translation.toLowerCase().includes(searchQuery)
-        );
-    }
+            if (wordText.includes(searchQuery) || translation.includes(searchQuery)) {
+                card.style.display = 'flex';
+                hasVisibleWords = true;
+            } else {
+                card.style.display = 'none';
+            }
+        });
 
-    renderWords(filtered);
-    document.getElementById('total-words').textContent = filtered.length;
+        if (hasVisibleWords) {
+            block.style.display = 'block';
+            // Expand if searching
+            if (searchQuery) {
+                block.querySelector('.category-words').classList.remove('hidden');
+                block.querySelector('.category-toggle-icon').textContent = '▼';
+            }
+        } else {
+            block.style.display = 'none';
+        }
+    });
 }
 
 window.deleteWord = async function (id) {
@@ -311,45 +349,6 @@ window.deleteWord = async function (id) {
         await loadReviewTab();
     }
 };
-
-async function manageCategories() {
-    const categories = await storage.getCategories();
-    const categoryList = categories.map((cat, idx) =>
-        cat === 'default' ? `${idx + 1}. ${cat} (cannot delete)` : `${idx + 1}. ${cat}`
-    ).join('\n');
-
-    const action = prompt(
-        `Categories:\n${categoryList}\n\n` +
-        `Enter:\n` +
-        `- "add:CategoryName" to add a new category\n` +
-        `- "delete:CategoryName" to delete a category\n` +
-        `- Cancel to close`
-    );
-
-    if (!action) return;
-
-    const [command, value] = action.split(':').map(s => s.trim());
-
-    if (command === 'add' && value) {
-        const categoryName = value.toLowerCase();
-        await storage.addCategory(categoryName);
-        await loadWordsTab();
-        alert(`Category "${categoryName}" added!`);
-    } else if (command === 'delete' && value) {
-        const categoryName = value.toLowerCase();
-        if (categoryName === 'default') {
-            alert('Cannot delete default category!');
-            return;
-        }
-        if (confirm(`Delete category "${categoryName}"? All words will be moved to "default".`)) {
-            await storage.deleteCategory(categoryName);
-            await loadWordsTab();
-            alert(`Category "${categoryName}" deleted!`);
-        }
-    } else {
-        alert('Invalid command! Use format "add:Name" or "delete:Name"');
-    }
-}
 
 // History Tab
 let allHistory = [];
@@ -589,11 +588,11 @@ async function populateModels() {
                 if (flash) select.value = flash.value;
             }
         } else {
-            select.innerHTML = '<option value="gemini-2.5-flash">Gemini 1.5 Flash (Default)</option>';
+            select.innerHTML = '<option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>';
             console.error('Failed to fetch models:', response.error);
         }
     } catch (e) {
-        select.innerHTML = '<option value="gemini-2.5-flash">Gemini 1.5 Flash (Default)</option>';
+        select.innerHTML = '<option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>';
         console.error('Error fetching models:', e);
     }
 }

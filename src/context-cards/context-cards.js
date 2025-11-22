@@ -182,7 +182,7 @@ function handleManualResult(side, result, input, correctAnswer) {
         input.value += ` (${correctAnswer})`; // Show correct answer
     }
 
-    // Hide hint
+    // Hide hint immediately for this side
     const hintBtn = document.getElementById(`${side}-hint-btn`);
     if (hintBtn) hintBtn.classList.add('hidden');
 
@@ -198,8 +198,27 @@ function handleManualResult(side, result, input, correctAnswer) {
         });
     }
 
+    // Replace blanks immediately for this side only
+    replaceBlanksForSide(side);
+
+    // Show explanation immediately for this side only
+    showExplanationForSide(side);
+
+    // If both sides answered, track mistakes
     if (frontAnswered && backAnswered) {
-        showFeedbackAndExplanation();
+        const bothCorrect = frontCorrect && backCorrect;
+
+        // Track mistakes (only during main session, not during mistake review)
+        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalFlashcardsCount) {
+            const card = flashcards[currentIndex];
+            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+            if (!alreadyAdded) {
+                mistakeCards.push(JSON.parse(JSON.stringify(card)));
+            }
+        }
+
+        // Update word statistics
+        updateWordStatistics(flashcards[currentIndex].word, bothCorrect);
     }
 
     updateProgressIndicators();
@@ -280,7 +299,7 @@ async function loadFlashcards() {
     try {
         loadingScreen.classList.remove('hidden');
 
-        const response = await chrome.runtime.sendMessage({ type: 'GENERATE_FLASHCARDS' });
+        const response = await chrome.runtime.sendMessage({ type: 'GENERATE_CONTEXT_CARDS' });
 
         if (!response.success) {
             showError(response.error || i18n.getMessage('error_unknown'));
@@ -370,15 +389,36 @@ function showCard(index) {
     setMode('front', frontMode);
     setMode('back', backMode);
 
-    // Reset inputs or restore
-    document.getElementById('front-input').value = cardStates[index].frontInputValue || '';
-    document.getElementById('back-input').value = cardStates[index].backInputValue || '';
-    document.getElementById('front-input').disabled = false;
-    document.getElementById('back-input').disabled = false;
-    document.getElementById('front-input').className = 'manual-input';
-    document.getElementById('back-input').className = 'manual-input';
-    document.getElementById('front-submit').disabled = false;
-    document.getElementById('back-submit').disabled = false;
+    // Restore inputs with full state
+    ['front', 'back'].forEach(side => {
+        const input = document.getElementById(`${side}-input`);
+        const submit = document.getElementById(`${side}-submit`);
+        const isAnswered = side === 'front' ? frontAnswered : backAnswered;
+        const isCorrect = side === 'front' ? frontCorrect : backCorrect;
+
+        // Restore value
+        if (side === 'front') {
+            input.value = cardStates[index].frontInputValue || '';
+        } else {
+            input.value = cardStates[index].backInputValue || '';
+        }
+
+        // Restore state based on whether it was answered
+        if (isAnswered) {
+            input.disabled = true;
+            submit.disabled = true;
+            input.className = 'manual-input';
+            if (isCorrect) {
+                input.classList.add('correct');
+            } else {
+                input.classList.add('wrong');
+            }
+        } else {
+            input.disabled = false;
+            submit.disabled = false;
+            input.className = 'manual-input';
+        }
+    });
 
     // Update card content
     document.getElementById('front-sentence').textContent = card.en.replace(/_+/g, '______');
@@ -402,8 +442,22 @@ function showCard(index) {
     }
 
     // Show/hide feedback and explanation based on state
-    if (frontAnswered && backAnswered) {
-        showFeedbackAndExplanation();
+    if (frontAnswered || backAnswered) {
+        // Show explanation for the current side if answered
+        const currentSide = isFlipped ? 'back' : 'front';
+        const sideAnswered = currentSide === 'front' ? frontAnswered : backAnswered;
+
+        if (sideAnswered) {
+            showExplanationForSide(currentSide);
+            replaceBlanksForSide(currentSide);
+        }
+
+        // If the other side is also answered, replace its blanks too
+        const otherSide = currentSide === 'front' ? 'back' : 'front';
+        const otherAnswered = otherSide === 'front' ? frontAnswered : backAnswered;
+        if (otherAnswered) {
+            replaceBlanksForSide(otherSide);
+        }
     } else {
         document.getElementById('feedback-message').classList.add('hidden');
         document.getElementById('explanation-section').classList.add('hidden');
@@ -486,6 +540,7 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
 
     // Determine if answer is correct
     const isCorrect = selectedOption.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
+    const side = language === 'en' ? 'front' : 'back';
 
     if (language === 'en') {
         frontAnswered = true;
@@ -513,7 +568,7 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
         });
     }
 
-    // Hide hint button after answering
+    // Hide hint button immediately for this side
     const hintBtn = language === 'en' ?
         document.getElementById('front-hint-btn') :
         document.getElementById('back-hint-btn');
@@ -538,10 +593,27 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
         }
     }
 
-    // Check if both sides are answered
+    // Replace blanks immediately for this side only
+    replaceBlanksForSide(side);
+
+    // Show explanation immediately for this side only
+    showExplanationForSide(side);
+
+    // If both sides answered, track mistakes
     if (frontAnswered && backAnswered) {
-        // Show feedback and explanation
-        showFeedbackAndExplanation();
+        const bothCorrect = frontCorrect && backCorrect;
+
+        // Track mistakes (only during main session, not during mistake review)
+        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalFlashcardsCount) {
+            const card = flashcards[currentIndex];
+            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+            if (!alreadyAdded) {
+                mistakeCards.push(JSON.parse(JSON.stringify(card)));
+            }
+        }
+
+        // Update word statistics
+        updateWordStatistics(flashcards[currentIndex].word, bothCorrect);
     }
 
     updateProgressIndicators();
@@ -558,32 +630,22 @@ function flipCard() {
     }
     isFlipped = !isFlipped;
 
-    // Update explanation language if both sides are answered
-    if (frontAnswered && backAnswered) {
-        updateExplanationLanguage();
-    }
+    // Update explanation for the new current side
+    updateExplanationLanguage();
 }
 
 // Update explanation language based on current side
 function updateExplanationLanguage() {
-    const card = flashcards[currentIndex];
-    const feedbackMsg = document.getElementById('feedback-message');
-    const explanationText = document.getElementById('explanation-text');
+    const currentSide = isFlipped ? 'back' : 'front';
+    const sideAnswered = currentSide === 'front' ? frontAnswered : backAnswered;
 
-    const bothCorrect = frontCorrect && backCorrect;
-    const currentLang = isFlipped ? 'ru' : 'en';
-
-    // Update feedback message
-    // Update feedback message
-    // Update feedback message
-    feedbackMsg.textContent = bothCorrect ? i18n.getMessage('flashcards_correct') : i18n.getMessage('flashcards_wrong');
-
-    // Update explanation
-    const explanation = currentLang === 'en'
-        ? (card.explanation_en || card.explanation || i18n.getMessage('no_explanation'))
-        : (card.explanation_ru || card.explanation || i18n.getMessage('no_explanation'));
-
-    explanationText.textContent = explanation;
+    // Only show explanation if current side is answered
+    if (sideAnswered) {
+        showExplanationForSide(currentSide);
+    } else {
+        document.getElementById('feedback-message').classList.add('hidden');
+        document.getElementById('explanation-section').classList.add('hidden');
+    }
 }
 
 // Show error screen
@@ -730,67 +792,49 @@ function showHint(hintText) {
     });
 }
 
-// Show feedback and explanation after both sides answered
-function showFeedbackAndExplanation() {
+
+// Replace blanks for a specific side only
+function replaceBlanksForSide(side) {
+    const card = flashcards[currentIndex];
+
+    if (side === 'front') {
+        const frontSentence = document.getElementById('front-sentence');
+        const correctAnswerEn = card.correct_answer_en || card.word;
+        const frontText = card.en;
+        const frontFilled = frontText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerEn}</strong>`);
+        frontSentence.innerHTML = frontFilled;
+    } else {
+        const backSentence = document.getElementById('back-sentence');
+        const correctAnswerRu = card.correct_answer_ru;
+        const backText = card.ru;
+        const backFilled = backText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerRu}</strong>`);
+        backSentence.innerHTML = backFilled;
+    }
+}
+
+// Show explanation for a specific side only
+function showExplanationForSide(side) {
     const card = flashcards[currentIndex];
     const feedbackMsg = document.getElementById('feedback-message');
     const explanationSection = document.getElementById('explanation-section');
     const explanationText = document.getElementById('explanation-text');
 
-    // Determine feedback
-    const bothCorrect = frontCorrect && backCorrect;
+    // Determine correctness for this side only
+    const isCorrect = side === 'front' ? frontCorrect : backCorrect;
 
-    // Track mistakes for review (only during main session, not during mistake review)
-    if (!isReviewingMistakes && !bothCorrect && currentIndex < originalFlashcardsCount) {
-        // Add card to mistakes if it has at least one wrong answer and not already added
-        const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
-        if (!alreadyAdded) {
-            mistakeCards.push(JSON.parse(JSON.stringify(card)));
-        }
-    }
-
-    // Update word statistics
-    updateWordStatistics(card.word, bothCorrect);
-
-    // Use language based on current side
-    const currentLang = isFlipped ? 'ru' : 'en';
-
-    // Update feedback message
-    feedbackMsg.textContent = bothCorrect ? i18n.getMessage('flashcards_correct') : i18n.getMessage('flashcards_wrong');
-
-    feedbackMsg.className = bothCorrect ? 'feedback-message success' : 'feedback-message failure';
+    // Show feedback based on this side's result
+    feedbackMsg.textContent = isCorrect ? i18n.getMessage('flashcards_correct') : i18n.getMessage('flashcards_wrong');
+    feedbackMsg.className = isCorrect ? 'feedback-message success' : 'feedback-message failure';
     feedbackMsg.classList.remove('hidden');
 
-    // Show explanation in correct language
+    // Show explanation in correct language for this side
+    const currentLang = side === 'front' ? 'en' : 'ru';
     const explanation = currentLang === 'en'
         ? (card.explanation_en || card.explanation || i18n.getMessage('no_explanation'))
         : (card.explanation_ru || card.explanation || i18n.getMessage('no_explanation'));
 
     explanationText.textContent = explanation;
     explanationSection.classList.remove('hidden');
-
-    // Replace blanks with correct answers in sentences
-    replaceBlanksWithAnswers();
-}
-
-// Replace blanks with correct answers in sentences
-function replaceBlanksWithAnswers() {
-    const card = flashcards[currentIndex];
-    const frontSentence = document.getElementById('front-sentence');
-    const backSentence = document.getElementById('back-sentence');
-
-    const correctAnswerEn = card.correct_answer_en || card.word;
-    const correctAnswerRu = card.correct_answer_ru;
-
-    // Replace front sentence blank
-    const frontText = card.en;
-    const frontFilled = frontText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerEn}</strong>`);
-    frontSentence.innerHTML = frontFilled;
-
-    // Replace back sentence blank
-    const backText = card.ru;
-    const backFilled = backText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerRu}</strong>`);
-    backSentence.innerHTML = backFilled;
 }
 
 // Update word statistics
@@ -950,7 +994,8 @@ function findFirstUnanswered() {
     const checkLimit = isReviewingMistakes ? flashcards.length : originalFlashcardsCount;
     for (let i = 0; i < checkLimit; i++) {
         const state = cardStates[i];
-        if (!state || !state.frontAnswered || !state.backAnswered) {
+        // Allow finishing if answered at least one side
+        if (!state || (!state.frontAnswered && !state.backAnswered)) {
             return i;
         }
     }

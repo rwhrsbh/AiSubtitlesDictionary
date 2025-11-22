@@ -191,7 +191,7 @@ function handleManualResult(side, result, input, correctAnswer) {
         input.value += ` (${correctAnswer})`;
     }
 
-    // Show transcription if answered
+    // Show transcription immediately for this side
     const transId = side === 'front' ? 'card-transcription' : 'card-transcription-ru';
     document.getElementById(transId).classList.remove('hidden');
 
@@ -207,7 +207,10 @@ function handleManualResult(side, result, input, correctAnswer) {
         });
     }
 
-    // If both sides answered, track mistakes and replace blanks
+    // Replace blanks immediately for this side only
+    replaceBlanksForSide(side);
+
+    // If both sides answered, track mistakes
     if (frontAnswered && backAnswered) {
         const bothCorrect = frontCorrect && backCorrect;
 
@@ -219,8 +222,6 @@ function handleManualResult(side, result, input, correctAnswer) {
                 mistakeCards.push(JSON.parse(JSON.stringify(card)));
             }
         }
-
-        replaceBlanksWithAnswers();
     }
 
     updateProgressIndicators();
@@ -355,47 +356,85 @@ function showCard(index) {
 
     frontAnswered = cardStates[index].frontAnswered;
     backAnswered = cardStates[index].backAnswered;
+    frontCorrect = cardStates[index].frontCorrect;
+    backCorrect = cardStates[index].backCorrect;
     frontMode = cardStates[index].frontMode || 'manual';
     backMode = cardStates[index].backMode || 'manual';
 
     setMode('front', frontMode);
     setMode('back', backMode);
 
-    // Reset inputs
+    // Restore inputs with full state
     ['front', 'back'].forEach(side => {
         const input = document.getElementById(`${side}-input`);
         const submit = document.getElementById(`${side}-submit`);
+        const isAnswered = side === 'front' ? frontAnswered : backAnswered;
+        const isCorrect = side === 'front' ? frontCorrect : backCorrect;
 
+        // Restore value
         if (side === 'front') {
             input.value = cardStates[index].frontInputValue || '';
         } else {
             input.value = cardStates[index].backInputValue || '';
         }
 
-        input.disabled = false;
-        input.className = 'manual-input';
-        submit.disabled = false;
+        // Restore state based on whether it was answered
+        if (isAnswered) {
+            input.disabled = true;
+            submit.disabled = true;
+            // Restore the correct class
+            input.className = 'manual-input';
+            if (isCorrect) {
+                input.classList.add('correct');
+            } else {
+                input.classList.add('wrong');
+            }
+        } else {
+            input.disabled = false;
+            submit.disabled = false;
+            input.className = 'manual-input';
+        }
     });
 
     // Update English side
     const defEn = card.definitions[0]?.meaning_en || 'No definition';
     document.getElementById('card-hint-en').textContent = defEn;
     document.getElementById('card-transcription').textContent = card.transcription || '';
-    document.getElementById('card-transcription').classList.add('hidden');
+
+    // Show/hide transcription based on answered state
+    if (frontAnswered) {
+        document.getElementById('card-transcription').classList.remove('hidden');
+    } else {
+        document.getElementById('card-transcription').classList.add('hidden');
+    }
 
     // Update Russian side
     const defRu = card.definitions[0]?.meaning_ru || 'Нет определения';
     document.getElementById('card-hint-ru').textContent = defRu;
     document.getElementById('card-transcription-ru').textContent = card.transcription || '';
-    document.getElementById('card-transcription-ru').classList.add('hidden');
+
+    // Show/hide transcription based on answered state
+    if (backAnswered) {
+        document.getElementById('card-transcription-ru').classList.remove('hidden');
+    } else {
+        document.getElementById('card-transcription-ru').classList.add('hidden');
+    }
 
     // Update badges
     document.getElementById('front-lang').textContent = 'EN';
     document.getElementById('back-lang').textContent = targetLanguage;
 
-    // Render Examples
+    // Render Examples (will be replaced with answers if side was answered)
     renderExamples('examples-container-en', card.definitions, 'en');
     renderExamples('examples-container-ru', card.definitions, 'ru');
+
+    // Replace blanks if sides were answered
+    if (frontAnswered) {
+        replaceBlanksForSide('front');
+    }
+    if (backAnswered) {
+        replaceBlanksForSide('back');
+    }
 
     // Render Options
     renderOptions('front-options', card.distractors_en, card.word, 'en');
@@ -523,6 +562,7 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
     allButtons.forEach(b => b.disabled = true);
 
     const isCorrect = selectedOption === correctAnswer;
+    const side = language === 'en' ? 'front' : 'back';
 
     if (language === 'en') {
         frontAnswered = true;
@@ -547,7 +587,7 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
         });
     }
 
-    // Show transcription
+    // Show transcription immediately for this side
     const transId = language === 'en' ? 'card-transcription' : 'card-transcription-ru';
     document.getElementById(transId).classList.remove('hidden');
 
@@ -570,7 +610,10 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
         }
     }
 
-    // If both sides answered, track mistakes and replace blanks
+    // Replace blanks immediately for this side only
+    replaceBlanksForSide(side);
+
+    // If both sides answered, track mistakes
     if (frontAnswered && backAnswered) {
         const bothCorrect = frontCorrect && backCorrect;
 
@@ -582,48 +625,48 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
                 mistakeCards.push(JSON.parse(JSON.stringify(card)));
             }
         }
-
-        replaceBlanksWithAnswers();
     }
 
     updateProgressIndicators();
 }
 
-// Replace blanks with correct answers in examples
-function replaceBlanksWithAnswers() {
+// Replace blanks for a specific side only
+function replaceBlanksForSide(side) {
     const card = cards[currentIndex];
 
-    // Replace blanks in English examples
-    const examplesContainerEn = document.getElementById('examples-container-en');
-    if (examplesContainerEn && card.definitions) {
-        examplesContainerEn.innerHTML = '';
-        card.definitions.forEach(def => {
-            const examples = def.examples_en || def.examples || [];
-            examples.forEach(example => {
-                const div = document.createElement('div');
-                div.className = 'example-item';
-                const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${card.word}</strong>`);
-                div.innerHTML = filled;
-                examplesContainerEn.appendChild(div);
+    if (side === 'front') {
+        // Replace blanks in English examples only
+        const examplesContainerEn = document.getElementById('examples-container-en');
+        if (examplesContainerEn && card.definitions) {
+            examplesContainerEn.innerHTML = '';
+            card.definitions.forEach(def => {
+                const examples = def.examples_en || def.examples || [];
+                examples.forEach(example => {
+                    const div = document.createElement('div');
+                    div.className = 'example-item';
+                    const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${card.word}</strong>`);
+                    div.innerHTML = filled;
+                    examplesContainerEn.appendChild(div);
+                });
             });
-        });
-    }
-
-    // Replace blanks in Russian/target language examples
-    const examplesContainerRu = document.getElementById('examples-container-ru');
-    if (examplesContainerRu && card.definitions) {
-        examplesContainerRu.innerHTML = '';
-        card.definitions.forEach(def => {
-            const examples = def.examples_ru || def.examples || [];
-            examples.forEach(example => {
-                const div = document.createElement('div');
-                div.className = 'example-item';
-                const wordToFill = card.word_ru || card.word;
-                const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
-                div.innerHTML = filled;
-                examplesContainerRu.appendChild(div);
+        }
+    } else {
+        // Replace blanks in Russian/target language examples only
+        const examplesContainerRu = document.getElementById('examples-container-ru');
+        if (examplesContainerRu && card.definitions) {
+            examplesContainerRu.innerHTML = '';
+            card.definitions.forEach(def => {
+                const examples = def.examples_ru || def.examples || [];
+                examples.forEach(example => {
+                    const div = document.createElement('div');
+                    div.className = 'example-item';
+                    const wordToFill = card.word_ru || card.word;
+                    const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
+                    div.innerHTML = filled;
+                    examplesContainerRu.appendChild(div);
+                });
             });
-        });
+        }
     }
 }
 
@@ -861,7 +904,8 @@ function findFirstUnanswered() {
     const checkLimit = isReviewingMistakes ? cards.length : originalCardsCount;
     for (let i = 0; i < checkLimit; i++) {
         const state = cardStates[i];
-        if (!state || !state.frontAnswered || !state.backAnswered) {
+        // Allow finishing if answered at least one side
+        if (!state || (!state.frontAnswered && !state.backAnswered)) {
             return i;
         }
     }

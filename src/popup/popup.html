@@ -22,7 +22,9 @@
             <p id="words-count">0 words to review</p>
             <button id="start-review-btn" class="primary-btn" data-i18n="start_review">Start Review Session</button>
             <button id="start-flashcards-btn" class="secondary-btn" style="margin-top: 12px;"
-                data-i18n="practice_flashcards">📚 Practice Flashcards</button>
+                data-i18n="practice_flashcards">📚 Flashcards</button>
+            <button id="start-context-cards-btn" class="secondary-btn" style="margin-top: 12px;"
+                data-i18n="context_cards">📝 Context Cards</button>
             <button id="start-definition-cards-btn" class="secondary-btn" style="margin-top: 12px;"
                 data-i18n="definition_cards">📖 Definition Cards</button>
         </div>
@@ -34,15 +36,10 @@
     <!-- Words Tab -->
     <div id="words-tab" class="content hidden">
         <div class="words-header">
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <select id="category-filter" style="flex: 1;">
-                    <option value="all">All Categories</option>
-                </select>
-                <button id="manage-categories-btn" style="width: auto; padding: 8px 12px; font-size: 12px;"
-                    data-i18n="manage_categories">Manage</button>
-            </div>
-            <input type="text" id="word-search" placeholder="Search words...">
+            <input type="text" id="word-search" placeholder="Search words..." style="margin-bottom: 10px;">
             <div id="word-stats">Total: <span id="total-words">0</span> words</div>
+            <button id="add-category-btn" class="secondary-btn" style="width: 100%; margin-bottom: 10px;"
+                data-i18n="add_category">+ Add Category</button>
         </div>
         <div id="words-list" class="words-list">
             <!-- Words injected here -->

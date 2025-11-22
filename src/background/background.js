@@ -62,6 +62,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleGenerateFlashcards().then(sendResponse);
         return true;
     }
+    if (message.type === 'GENERATE_CONTEXT_CARDS') {
+        handleGenerateContextCards().then(sendResponse);
+        return true;
+    }
     if (message.type === 'UPDATE_FLASHCARD_STATS') {
         handleUpdateFlashcardStats(message.word, message.success).then(sendResponse);
         return true;
@@ -112,7 +116,7 @@ async function handleExplainWord(word) {
 
 async function handleGenerateFlashcards() {
     try {
-        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'flashcardsWordsLimit', 'flashcardsExercisesLimit']);
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'flashcardsWordsLimit']);
         const apiKey = result.GEMINI_API_KEY;
 
         if (!apiKey) {
@@ -121,13 +125,10 @@ async function handleGenerateFlashcards() {
 
         // Get learning words and history
         const learningWords = await storage.getLearningList();
-
-        // Check if we should include history words (default: true)
         const includeHistory = result.flashcardsIncludeHistory !== false;
         const historyResult = includeHistory ? await chrome.storage.local.get(['wordHistory']) : { wordHistory: [] };
         const historyWords = historyResult.wordHistory || [];
 
-        // Combine, shuffle and limit words
         let allWords = [...learningWords, ...historyWords];
 
         if (allWords.length === 0) {
@@ -135,18 +136,52 @@ async function handleGenerateFlashcards() {
         }
 
         allWords = shuffleArray(allWords);
-        // Get limits from settings or use defaults
         const wordsLimit = result.flashcardsWordsLimit || 25;
-        const exercisesLimit = result.flashcardsExercisesLimit || 25;
-
         const limitedWords = allWords.slice(0, wordsLimit);
 
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
-        // Pass all words as the first argument, empty array as second since we already combined them
+
+        // Generate simple flashcards (word + translation + distractors)
+        const flashcards = await gemini.generateSimpleFlashcards(limitedWords, apiKey, model, language);
+
+        return { success: true, data: flashcards, targetLanguage: language };
+    } catch (e) {
+        console.error(e);
+        return { success: false, error: e.message };
+    }
+}
+
+async function handleGenerateContextCards() {
+    try {
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'flashcardsWordsLimit', 'flashcardsExercisesLimit']);
+        const apiKey = result.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            return { success: false, error: 'API Key not set. Please configure in extension settings.' };
+        }
+
+        const learningWords = await storage.getLearningList();
+        const includeHistory = result.flashcardsIncludeHistory !== false;
+        const historyResult = includeHistory ? await chrome.storage.local.get(['wordHistory']) : { wordHistory: [] };
+        const historyWords = historyResult.wordHistory || [];
+
+        let allWords = [...learningWords, ...historyWords];
+
+        if (allWords.length === 0) {
+            return { success: false, error: 'No words available. Add some words first!' };
+        }
+
+        allWords = shuffleArray(allWords);
+        const wordsLimit = result.flashcardsWordsLimit || 25;
+        const exercisesLimit = result.flashcardsExercisesLimit || 25;
+        const limitedWords = allWords.slice(0, wordsLimit);
+
+        const model = result.geminiModel || 'gemini-2.0-flash';
+        const language = result.appLanguage || getDefaultLanguage();
+
         let flashcards = await gemini.generateFlashcards(limitedWords, [], apiKey, model, language);
 
-        // Limit exercises if needed
         if (flashcards && flashcards.length > exercisesLimit) {
             flashcards = shuffleArray(flashcards).slice(0, exercisesLimit);
         }

@@ -3,14 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Flashcards - AI Subtitles</title>
-    <link rel="stylesheet" href="flashcards.css">
+    <title data-i18n="context_cards_title">Context Cards</title>
+    <link rel="stylesheet" href="context-cards.css">
 </head>
 
 <body>
     <div class="container">
         <div class="header">
-            <h1 data-i18n="flashcards_title">Flashcards Exercise</h1>
+            <h1 data-i18n="context_cards_title">Context Cards Exercise</h1>
             <div class="progress">
                 <span id="current-card">0</span> / <span id="total-cards">0</span>
             </div>
@@ -23,7 +23,7 @@
 
         <div id="loading-screen" class="loading-screen">
             <div class="loading-spinner"></div>
-            <p data-i18n="flashcards_loading">Generating exercises with AI...</p>
+            <p data-i18n="context_cards_loading">Generating exercises with AI...</p>
             <p class="loading-subtext" data-i18n="def_cards_wait">This may take a moment</p>
         </div>
 
@@ -101,14 +101,15 @@
 
         <div id="complete-screen" class="complete-screen hidden">
             <div class="complete-icon">🎉</div>
-            <h2 data-i18n="flashcards_complete">Great Job!</h2>
-            <p data-i18n="flashcards_reviewed_all">You've completed all flashcards!</p>
-            <button id="restart-btn" class="control-btn primary" data-i18n="flashcards_start_over">Start Over</button>
-            <button id="close-btn" class="control-btn" data-i18n="flashcards_close">Close</button>
+            <h2 data-i18n="context_cards_complete">Great Job!</h2>
+            <p data-i18n="context_cards_reviewed_all">You've completed all flashcards!</p>
+            <button id="restart-btn" class="control-btn primary" data-i18n="context_cards_start_over">Start
+                Over</button>
+            <button id="close-btn" class="control-btn" data-i18n="context_cards_close">Close</button>
         </div>
     </div>
 
-    <script src="flashcards.js" type="module"></script>
+    <script src="context-cards.js" type="module"></script>
 </body>
 
 </html>

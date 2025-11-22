@@ -8,6 +8,8 @@ window.openWordPopup = async function (word, x, y) {
 
     const popup = document.createElement('div');
     popup.className = 'aisub-popup';
+    // Use fixed positioning to ensure it works with clientX/Y
+    popup.style.position = 'fixed';
     popup.style.left = x + 'px';
     popup.style.top = y + 'px';
 
@@ -29,7 +31,9 @@ window.openWordPopup = async function (word, x, y) {
         </div>
     `;
 
-    document.body.appendChild(popup);
+    // Append to fullscreen element if exists, otherwise body
+    const targetContainer = document.fullscreenElement || document.body;
+    targetContainer.appendChild(popup);
 
     // Load categories
     loadCategories(popup);

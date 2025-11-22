@@ -13,10 +13,21 @@ window.startRenderingSubtitles = async function (events) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'aisub-container';
-        // Insert into video container so it scales with video
-        const videoContainer = document.querySelector('.html5-video-player');
-        if (videoContainer) {
-            videoContainer.appendChild(container);
+
+        // Try to find the best container
+        const video = document.querySelector('video');
+        const youtubeContainer = document.querySelector('.html5-video-player');
+        const rezkaContainer = document.getElementById('cdnplayer') || (video ? video.parentElement : null);
+
+        if (youtubeContainer) {
+            youtubeContainer.appendChild(container);
+        } else if (rezkaContainer) {
+            rezkaContainer.appendChild(container);
+            // Ensure relative positioning for absolute child
+            const style = window.getComputedStyle(rezkaContainer);
+            if (style.position === 'static') {
+                rezkaContainer.style.position = 'relative';
+            }
         } else {
             document.body.appendChild(container);
         }
@@ -35,7 +46,56 @@ window.startRenderingSubtitles = async function (events) {
 
     if (renderInterval) clearInterval(renderInterval);
     renderInterval = setInterval(updateSubtitles, 100);
+
+    // Reset positions on start
+    positions = { windowed: null, fullscreen: null };
+
+    // Handle Fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange); // Safari/Old Chrome
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange); // Firefox
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange); // IE/Edge
 };
+
+function handleFullscreenChange() {
+    const fullscreenElement = document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement;
+
+    const container = document.getElementById('aisub-container');
+    const settingsBtn = document.getElementById('aisub-settings-btn');
+    const settingsPanel = document.getElementById('aisub-settings-panel');
+
+    if (fullscreenElement) {
+        // Move elements to fullscreen container
+        if (container) fullscreenElement.appendChild(container);
+        if (settingsBtn) fullscreenElement.appendChild(settingsBtn);
+        if (settingsPanel) fullscreenElement.appendChild(settingsPanel);
+    } else {
+        // Move back to default video container
+        const video = document.querySelector('video');
+        const defaultContainer = document.querySelector('.html5-video-player') ||
+            document.getElementById('cdnplayer') ||
+            (video ? video.parentElement : null) ||
+            document.body;
+
+        if (container) defaultContainer.appendChild(container);
+        if (settingsBtn) defaultContainer.appendChild(settingsBtn);
+        if (settingsPanel) defaultContainer.appendChild(settingsPanel);
+
+        // Fix for Rezka relative positioning if needed
+        if (defaultContainer.id === 'cdnplayer') {
+            const style = window.getComputedStyle(defaultContainer);
+            if (style.position === 'static') {
+                defaultContainer.style.position = 'relative';
+            }
+        }
+    }
+
+    // Apply position for the new state
+    applyPositionState();
+}
 
 function updateSubtitles() {
     const video = document.querySelector('video');
@@ -186,7 +246,56 @@ window.stopRenderingSubtitles = function () {
     }
     const settingsBtn = document.getElementById('aisub-settings-btn');
     if (settingsBtn) settingsBtn.style.display = 'none';
+
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
 };
+
+// Position state
+let positions = {
+    windowed: null,
+    fullscreen: null
+};
+
+function updatePositionState() {
+    const container = document.getElementById('aisub-container');
+    if (!container) return;
+
+    const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    const mode = isFullscreen ? 'fullscreen' : 'windowed';
+
+    // Save current position if it has been moved (i.e. has top/left set)
+    if (container.style.top && container.style.left) {
+        positions[mode] = {
+            top: container.style.top,
+            left: container.style.left
+        };
+    }
+}
+
+function applyPositionState() {
+    const container = document.getElementById('aisub-container');
+    if (!container) return;
+
+    const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    const mode = isFullscreen ? 'fullscreen' : 'windowed';
+    const saved = positions[mode];
+
+    if (saved) {
+        container.style.top = saved.top;
+        container.style.left = saved.left;
+        container.style.transform = 'none';
+        container.style.bottom = 'auto'; // Override CSS bottom
+    } else {
+        // Reset to default (Center Bottom)
+        container.style.top = '';
+        container.style.left = '50%';
+        container.style.transform = 'translateX(-50%)';
+        container.style.bottom = '12%';
+    }
+}
 
 // Draggable Logic
 function makeDraggable(element, handle) {
@@ -199,9 +308,34 @@ function makeDraggable(element, handle) {
     }
 
     function dragMouseDown(e) {
+        // Allow clicking on controls/inputs inside if any (though currently just text)
+        // But preventing default is needed to stop text selection during drag
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') {
+            return;
+        }
+
         e.preventDefault();
         pos3 = e.clientX;
         pos4 = e.clientY;
+
+        // Convert to absolute position to prevent jumping when removing transform
+        // and to prepare for constrained dragging
+        const rect = element.getBoundingClientRect();
+        const parent = element.offsetParent || document.body;
+        const parentRect = parent.getBoundingClientRect();
+
+        const borderLeft = parent.clientLeft || 0;
+        const borderTop = parent.clientTop || 0;
+
+        const currentLeft = rect.left - parentRect.left - borderLeft;
+        const currentTop = rect.top - parentRect.top - borderTop;
+
+        element.style.left = currentLeft + 'px';
+        element.style.top = currentTop + 'px';
+        element.style.transform = 'none';
+        element.style.bottom = 'auto';
+        element.style.right = 'auto';
+
         document.onmouseup = closeDragElement;
         document.onmousemove = elementDrag;
     }
@@ -213,14 +347,27 @@ function makeDraggable(element, handle) {
         pos3 = e.clientX;
         pos4 = e.clientY;
 
-        element.style.top = (element.offsetTop - pos2) + "px";
-        element.style.left = (element.offsetLeft - pos1) + "px";
-        element.style.transform = 'none'; // Disable transform centering
+        let newTop = element.offsetTop - pos2;
+        let newLeft = element.offsetLeft - pos1;
+
+        const parent = element.offsetParent || document.body;
+        // Use clientWidth/Height to exclude borders/scrollbars of parent
+        const maxLeft = parent.clientWidth - element.offsetWidth;
+        const maxTop = parent.clientHeight - element.offsetHeight;
+
+        // Clamp to parent boundaries
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+
+        element.style.top = newTop + "px";
+        element.style.left = newLeft + "px";
     }
 
     function closeDragElement() {
         document.onmouseup = null;
         document.onmousemove = null;
+        // Save position when drag ends
+        updatePositionState();
     }
 }
 
@@ -235,7 +382,11 @@ function initSettings(container) {
     btn.innerHTML = '⚙️';
     btn.title = window.AiSubtitlesI18n.getMessage('settings_title');
 
-    const videoContainer = document.querySelector('.html5-video-player') || document.body;
+    const video = document.querySelector('video');
+    const videoContainer = document.querySelector('.html5-video-player') ||
+        document.getElementById('cdnplayer') ||
+        (video ? video.parentElement : null) ||
+        document.body;
     videoContainer.appendChild(btn);
 
     // Settings Panel
@@ -365,4 +516,36 @@ function initSettings(container) {
 
     // Make panel draggable
     makeDraggable(panel, panel.querySelector('.aisub-settings-header'));
+
+    // Auto-hide settings button logic
+    let hideTimeout;
+    const hideSettingsBtn = () => {
+        if (panel.style.display !== 'block') { // Don't hide if panel is open
+            btn.style.opacity = '0';
+        }
+    };
+    const showSettingsBtn = () => {
+        btn.style.opacity = '1';
+        clearTimeout(hideTimeout);
+        hideTimeout = setTimeout(hideSettingsBtn, 3000);
+    };
+
+    // Initial state
+    btn.style.transition = 'opacity 0.3s';
+    showSettingsBtn();
+
+    // Listen to mouse movement on container
+    videoContainer.addEventListener('mousemove', showSettingsBtn);
+    videoContainer.addEventListener('mouseenter', showSettingsBtn);
+    videoContainer.addEventListener('mouseleave', hideSettingsBtn);
+
+    // Also listen on document for fullscreen cases where container might be different
+    document.addEventListener('mousemove', (e) => {
+        // Only trigger if mouse is over the video area
+        const rect = videoContainer.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+            showSettingsBtn();
+        }
+    });
 }
