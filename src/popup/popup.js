@@ -4,6 +4,44 @@ import { I18nService } from '../services/i18n.js';
 const storage = new StorageService();
 const i18n = new I18nService();
 
+// Helper function to extract translation based on user language
+function getTranslationForUser(translation) {
+    if (!translation) return '';
+
+    // If translation is a string, try to parse it as JSON first
+    if (typeof translation === 'string') {
+        // Check if it looks like JSON (starts with { or [)
+        const trimmed = translation.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try {
+                translation = JSON.parse(trimmed);
+            } catch (e) {
+                // Not valid JSON, return as-is
+                return translation;
+            }
+        } else {
+            // Regular string, return as-is
+            return translation;
+        }
+    }
+
+    // If translation is an object, extract based on user language
+    if (typeof translation === 'object' && translation !== null) {
+        const userLang = i18n.language || 'ru';
+
+        if (userLang === 'en') {
+            return translation.english || translation.English || Object.values(translation)[0] || '';
+        } else if (userLang === 'uk') {
+            return translation.ukrainian || translation.Ukrainian || translation.russian || Object.values(translation)[0] || '';
+        } else {
+            // Default to Russian
+            return translation.russian || translation.Russian || Object.values(translation)[0] || '';
+        }
+    }
+
+    return '';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     setupTabs();
@@ -289,7 +327,7 @@ function renderWordCard(w) {
                 <div class="word-card-word">${w.word}</div>
                 <div class="word-card-transcription">${w.transcription || ''}</div>
             </div>
-            <div class="word-card-translation">${w.translation}</div>
+            <div class="word-card-translation">${getTranslationForUser(w.translation)}</div>
             <div class="word-card-stats">
                 <span>✅ ${w.correctCount || 0}</span>
                 <span>❌ ${w.wrongCount || 0}</span>
@@ -391,7 +429,7 @@ async function renderHistory(words) {
                     <div class="word-card-word">${w.word}</div>
                     <div class="word-card-transcription">${w.transcription || ''}</div>
                 </div>
-                <div class="word-card-translation">${w.translation || ''}</div>
+                <div class="word-card-translation">${getTranslationForUser(w.translation)}</div>
                 ${w.example ? `<div class="word-card-example">"${w.example}"</div>` : ''}
                 <div class="word-card-stats">
                     <span>👁️ ${w.viewCount || 1}</span>
@@ -515,9 +553,12 @@ async function loadSettings() {
         'quizTranscription',
         'appLanguage',
         'tasksLimit',
+        'simpleFlashcardsWordsLimit',
+        'simpleFlashcardsExercisesLimit',
         'flashcardsWordsLimit',
         'flashcardsExercisesLimit',
-        'defCardsWordsLimit'
+        'defCardsWordsLimit',
+        'defCardsExercisesLimit'
     ]);
 
     if (settings.geminiModel) {
@@ -540,9 +581,12 @@ async function loadSettings() {
 
     // Load word limits
     document.getElementById('tasks-limit').value = settings.tasksLimit || 20;
+    document.getElementById('simple-flashcards-words-limit').value = settings.simpleFlashcardsWordsLimit || 25;
+    document.getElementById('simple-flashcards-exercises-limit').value = settings.simpleFlashcardsExercisesLimit || 25;
     document.getElementById('flashcards-words-limit').value = settings.flashcardsWordsLimit || 25;
     document.getElementById('flashcards-exercises-limit').value = settings.flashcardsExercisesLimit || 25;
     document.getElementById('def-cards-words-limit').value = settings.defCardsWordsLimit || 10;
+    document.getElementById('def-cards-exercises-limit').value = settings.defCardsExercisesLimit || 10;
 
     const uiLang = chrome.i18n.getUILanguage();
     let defaultLang = 'en';
@@ -608,9 +652,12 @@ async function saveSettings() {
     const flashcardsIncludeHistory = document.getElementById('flashcards-include-history').checked;
     const appLanguage = document.getElementById('app-language').value;
     const tasksLimit = parseInt(document.getElementById('tasks-limit').value) || 20;
+    const simpleFlashcardsWordsLimit = parseInt(document.getElementById('simple-flashcards-words-limit').value) || 25;
+    const simpleFlashcardsExercisesLimit = parseInt(document.getElementById('simple-flashcards-exercises-limit').value) || 25;
     const flashcardsWordsLimit = parseInt(document.getElementById('flashcards-words-limit').value) || 25;
     const flashcardsExercisesLimit = parseInt(document.getElementById('flashcards-exercises-limit').value) || 25;
     const defCardsWordsLimit = parseInt(document.getElementById('def-cards-words-limit').value) || 10;
+    const defCardsExercisesLimit = parseInt(document.getElementById('def-cards-exercises-limit').value) || 10;
 
     if (!quizTranslation && !quizTranscription) {
         alert('Select at least one quiz type!');
@@ -632,9 +679,12 @@ async function saveSettings() {
         quizTranslation: quizTranslation,
         quizTranscription: quizTranscription,
         tasksLimit: tasksLimit,
+        simpleFlashcardsWordsLimit: simpleFlashcardsWordsLimit,
+        simpleFlashcardsExercisesLimit: simpleFlashcardsExercisesLimit,
         flashcardsWordsLimit: flashcardsWordsLimit,
         flashcardsExercisesLimit: flashcardsExercisesLimit,
-        defCardsWordsLimit: defCardsWordsLimit
+        defCardsWordsLimit: defCardsWordsLimit,
+        defCardsExercisesLimit: defCardsExercisesLimit
     });
 
     // Update language immediately
@@ -737,16 +787,16 @@ async function showWordDetails(word) {
                     <p class="word-detail-transcription">${wordData.transcription || ''}</p>
                 </div>
                 <div class="word-detail-translation">
-                    <strong>Translation:</strong> ${wordData.translation}
+                    <strong>${i18n.getMessage('word_detail_translation')}</strong> ${getTranslationForUser(wordData.translation)}
                 </div>
                 ${wordData.explanation ? `
                     <div class="word-detail-explanation">
-                        <strong>Explanation:</strong> ${wordData.explanation}
+                        <strong>${i18n.getMessage('word_detail_explanation')}</strong> ${wordData.explanation}
                     </div>
                 ` : ''}
                 ${wordData.examples && wordData.examples.length > 0 ? `
                     <div class="word-detail-examples">
-                        <strong>Examples:</strong>
+                        <strong>${i18n.getMessage('word_detail_examples')}</strong>
                         <ul>
                             ${wordData.examples.map(ex => `<li>${ex}</li>`).join('')}
                         </ul>
@@ -754,25 +804,25 @@ async function showWordDetails(word) {
                 ` : ''}
                 ${wordData.example ? `
                     <div class="word-detail-example">
-                        <strong>Example:</strong> "${wordData.example}"
+                        <strong>${i18n.getMessage('word_detail_example')}</strong> "${wordData.example}"
                     </div>
                 ` : ''}
                 ${learningWord ? `
                     <div class="word-detail-stats">
                         <div class="stat-item">
-                            <span class="stat-label">Category:</span>
+                            <span class="stat-label">${i18n.getMessage('word_detail_category')}</span>
                             <span class="stat-value">${(learningWord.category || 'default').charAt(0).toUpperCase() + (learningWord.category || 'default').slice(1)}</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Correct:</span>
+                            <span class="stat-label">${i18n.getMessage('word_detail_correct')}</span>
                             <span class="stat-value correct">✅ ${learningWord.correctCount || 0}</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Wrong:</span>
+                            <span class="stat-label">${i18n.getMessage('word_detail_wrong')}</span>
                             <span class="stat-value wrong">❌ ${learningWord.wrongCount || 0}</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Added:</span>
+                            <span class="stat-label">${i18n.getMessage('word_detail_added')}</span>
                             <span class="stat-value">${new Date(learningWord.addedAt).toLocaleDateString()}</span>
                         </div>
                     </div>

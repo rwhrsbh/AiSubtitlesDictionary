@@ -1,5 +1,29 @@
 // Word Popup Logic
 
+// Helper function to extract translation based on user language
+function getTranslationForUser(translation) {
+    if (!translation) return '';
+
+    // If translation is already a string, return it
+    if (typeof translation === 'string') return translation;
+
+    // If translation is an object, extract based on user language
+    if (typeof translation === 'object' && translation !== null) {
+        const userLang = window.AiSubtitlesI18n.language || 'ru';
+
+        if (userLang === 'en') {
+            return translation.english || translation.English || Object.values(translation)[0] || '';
+        } else if (userLang === 'uk') {
+            return translation.ukrainian || translation.Ukrainian || translation.russian || Object.values(translation)[0] || '';
+        } else {
+            // Default to Russian
+            return translation.russian || translation.Russian || Object.values(translation)[0] || '';
+        }
+    }
+
+    return '';
+}
+
 window.openWordPopup = async function (word, x, y) {
     await window.AiSubtitlesI18n.init();
     // Remove existing popup
@@ -16,7 +40,10 @@ window.openWordPopup = async function (word, x, y) {
     popup.innerHTML = `
         <div class="aisub-popup-header">
             <span class="aisub-popup-word">${word}</span>
-            <span class="aisub-popup-close">✕</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span class="aisub-lang-badge" style="display: none; background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; user-select: none;" title="Click to change language">...</span>
+                <span class="aisub-popup-close">✕</span>
+            </div>
         </div>
         <div class="aisub-popup-content">
             <div class="aisub-loading">${window.AiSubtitlesI18n.getMessage('popup_loading_explanation')}</div>
@@ -47,30 +74,111 @@ window.openWordPopup = async function (word, x, y) {
     learnBtn.style.opacity = '0.5';
     learnBtn.style.cursor = 'not-allowed';
 
-    chrome.runtime.sendMessage({ type: 'EXPLAIN_WORD', word: word }, (response) => {
+    // Function to fetch explanation (can be called with optional language override)
+    const fetchExplanation = (overrideLanguage = null) => {
+        const langBadge = popup.querySelector('.aisub-lang-badge');
         const content = popup.querySelector('.aisub-popup-content');
-        if (response && response.success) {
-            content.innerHTML = `
-                <div><strong>${window.AiSubtitlesI18n.getMessage('popup_transcription')}:</strong> ${response.data.transcription || ''}</div>
-                <div><strong>${window.AiSubtitlesI18n.getMessage('popup_translation')}:</strong> ${response.data.translation}</div>
-                <div style="margin-top:8px; font-size:12px; color:#ccc;">${response.data.explanation}</div>
-            `;
 
-            // Inject word into data
-            response.data.word = word;
+        // Show loading state
+        content.innerHTML = `<div class="aisub-loading">${window.AiSubtitlesI18n.getMessage('popup_loading_explanation')}</div>`;
+        learnBtn.disabled = true;
+        learnBtn.style.opacity = '0.5';
+        learnBtn.style.cursor = 'not-allowed';
 
-            // Save context for learning
-            popup.dataset.fullData = JSON.stringify(response.data);
+        const messagePayload = { type: 'EXPLAIN_WORD', word: word };
+        if (overrideLanguage) {
+            messagePayload.overrideLanguage = overrideLanguage;
+        }
 
-            // Enable button
-            learnBtn.disabled = false;
-            learnBtn.style.opacity = '1';
-            learnBtn.style.cursor = 'pointer';
+        chrome.runtime.sendMessage(messagePayload, (response) => {
+            if (response && response.success) {
+                console.log('[Word Popup] Response data:', response.data);
 
-            // Save to history
-            saveToHistory(response.data);
-        } else {
-            content.innerHTML = `<div style="color:#ef4444;">${window.AiSubtitlesI18n.getMessage('error_prefix')} ${response.error || window.AiSubtitlesI18n.getMessage('error_unknown')}</div>`;
+                // Determine user language (ru, en, uk)
+                const userLang = window.AiSubtitlesI18n.language || 'ru';
+
+                // Extract translation - now always an object with all language variants
+                let translation = response.data.translation || {};
+                let displayTranslation = '';
+
+                if (typeof translation === 'object' && translation !== null) {
+                    // Translation is an object like {english: "...", russian: "...", ukrainian: "..."}
+                    // Select the appropriate translation based on user language
+                    if (userLang === 'en') {
+                        displayTranslation = translation.english || translation.English || '';
+                    } else if (userLang === 'uk') {
+                        displayTranslation = translation.ukrainian || translation.Ukrainian || translation.russian || '';
+                    } else {
+                        // Default to Russian
+                        displayTranslation = translation.russian || translation.Russian || '';
+                    }
+
+                    // Fallback to any available translation if preferred language is missing
+                    if (!displayTranslation) {
+                        displayTranslation = Object.values(translation)[0] || '';
+                    }
+                } else {
+                    // If for some reason it's a string, use it directly
+                    displayTranslation = translation;
+                }
+
+                const transcription = response.data.transcription || '';
+                const explanation = response.data.explanation || '';
+
+                content.innerHTML = `
+                    <div><strong>${window.AiSubtitlesI18n.getMessage('popup_transcription')}:</strong> ${transcription}</div>
+                    <div><strong>${window.AiSubtitlesI18n.getMessage('popup_translation')}:</strong> ${displayTranslation}</div>
+                    <div style="margin-top:8px; font-size:12px; color:#ccc;">${explanation}</div>
+                `;
+
+                // Show language badge
+                const detectedLang = response.data.word_language || 'Unknown';
+                const langCodes = {
+                    'English': 'EN', 'Russian': 'RU', 'Ukrainian': 'UK',
+                    'Spanish': 'ES', 'French': 'FR', 'German': 'DE',
+                    'Italian': 'IT', 'Portuguese': 'PT', 'Chinese': 'ZH',
+                    'Japanese': 'JA', 'Korean': 'KO', 'Arabic': 'AR'
+                };
+                const langCode = langCodes[detectedLang] || detectedLang.substring(0, 2).toUpperCase();
+                langBadge.textContent = langCode;
+                langBadge.style.display = 'inline-block';
+                langBadge.dataset.fullLanguage = detectedLang;
+
+                // Inject word into data
+                response.data.word = word;
+
+                // Save context for learning
+                popup.dataset.fullData = JSON.stringify(response.data);
+
+                // Enable button
+                learnBtn.disabled = false;
+                learnBtn.style.opacity = '1';
+                learnBtn.style.cursor = 'pointer';
+
+                // Save to history
+                saveToHistory(response.data);
+            } else {
+                content.innerHTML = `<div style="color:#ef4444;">${window.AiSubtitlesI18n.getMessage('error_prefix')} ${response.error || window.AiSubtitlesI18n.getMessage('error_unknown')}</div>`;
+            }
+        });
+    };
+
+    // Initial fetch
+    fetchExplanation();
+
+    // Language badge click handler
+    popup.querySelector('.aisub-lang-badge').addEventListener('click', () => {
+        const languages = [
+            'English', 'Russian', 'Ukrainian', 'Spanish', 'French', 'German',
+            'Italian', 'Portuguese', 'Chinese', 'Japanese', 'Korean', 'Arabic'
+        ];
+
+        const currentLang = popup.querySelector('.aisub-lang-badge').dataset.fullLanguage || 'English';
+        const message = `Current language: ${currentLang}\n\nEnter the correct language:`;
+        const newLang = prompt(message, currentLang);
+
+        if (newLang && newLang.trim() && newLang.trim() !== currentLang) {
+            fetchExplanation(newLang.trim());
         }
     });
 
@@ -141,11 +249,12 @@ async function saveToHistory(wordData) {
     const existingIndex = history.findIndex(w => w.word === wordData.word);
 
     if (existingIndex >= 0) {
-        // Update existing entry
+        // Update existing entry with new data (keep viewCount)
+        const oldViewCount = history[existingIndex].viewCount || 1;
         history[existingIndex] = {
-            ...history[existingIndex],
+            ...wordData,
             lastViewed: Date.now(),
-            viewCount: (history[existingIndex].viewCount || 1) + 1
+            viewCount: oldViewCount + 1
         };
     } else {
         // Add new entry
@@ -225,7 +334,7 @@ window.openSavedWordPopup = function (word, x, y, wordData) {
         </div>
         <div class="aisub-popup-content">
             <div><strong>${window.AiSubtitlesI18n.getMessage('popup_transcription')}:</strong> ${wordData.transcription || ''}</div>
-            <div><strong>${window.AiSubtitlesI18n.getMessage('popup_translation')}:</strong> ${wordData.translation}</div>
+            <div><strong>${window.AiSubtitlesI18n.getMessage('popup_translation')}:</strong> ${getTranslationForUser(wordData.translation)}</div>
             <div style="margin-top:8px; font-size:12px; color:#ccc;">${wordData.explanation || ''}</div>
             <div style="margin-top:12px; padding:8px; background:rgba(59,130,246,0.1); border-radius:6px; font-size:12px;">
                 <div style="color:#60a5fa; font-weight:600; margin-bottom:4px;">📊 ${window.AiSubtitlesI18n.getMessage('popup_progress')}:</div>

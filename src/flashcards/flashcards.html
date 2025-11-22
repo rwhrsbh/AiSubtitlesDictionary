@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="flashcards_title">Flashcards</title>
+    <link rel="stylesheet" href="flashcards.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 data-i18n="flashcards_title">Flashcards</h1>
+            <div class="progress">
+                <span id="current-index">0</span> / <span id="total-count">0</span>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-spinner"></div>
+            <p data-i18n="flashcards_loading">Loading flashcards...</p>
+            <p class="loading-subtext" data-i18n="def_cards_wait">This may take a moment</p>
+        </div>
+
+        <!-- Progress Indicator Sidebar -->
+        <div class="progress-sidebar" id="progress-sidebar">
+            <!-- Progress boxes will be injected here -->
+        </div>
+
+        <!-- Main Card Area -->
+        <div id="card-container" class="card-container hidden">
+            <div class="card">
+                <div class="card-content">
+                    <div class="word-display" id="card-front-text">Loading...</div>
+                    <div class="transcription" id="card-transcription"></div>
+
+                    <div class="input-area" id="input-area">
+                        <input type="text" id="answer-input" class="manual-input" autocomplete="off"
+                            data-i18n-placeholder="input_placeholder" placeholder="Type translation...">
+                        <div class="attempts-dots" id="attempts-dots">
+                            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                        </div>
+                        <button id="check-btn" class="action-btn" data-i18n="btn_check">Check</button>
+                    </div>
+
+                    <div id="feedback-area" class="feedback-area hidden">
+                        <div id="correct-answer-display" class="correct-answer hidden"></div>
+                        <div id="example-display" class="example-box hidden">
+                            <div class="example-text" id="example-text"></div>
+                            <div class="example-translation" id="example-translation"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls" id="controls">
+                <button id="idk-btn" class="control-btn secondary" data-i18n="flashcards_missed_it">Don't know</button>
+                <button id="next-btn" class="control-btn primary hidden" data-i18n="flashcards_next">Next</button>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state hidden">
+            <div class="complete-icon">🎉</div>
+            <h2 data-i18n="flashcards_reviewed_all">All caught up!</h2>
+            <button id="close-btn" class="control-btn primary" data-i18n="flashcards_close">Close</button>
+        </div>
+    </div>
+
+    <script src="flashcards.js" type="module"></script>
+</body>
+
+</html>

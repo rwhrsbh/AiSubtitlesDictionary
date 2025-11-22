@@ -204,20 +204,20 @@ function handleManualResult(side, result, input, correctAnswer) {
     // Show explanation immediately for this side only
     showExplanationForSide(side);
 
-    // If both sides answered, track mistakes
+    // Track mistakes if at least one side is answered incorrectly
+    const hasIncorrectAnswer = (frontAnswered && !frontCorrect) || (backAnswered && !backCorrect);
+
+    if (!isReviewingMistakes && hasIncorrectAnswer && currentIndex < originalFlashcardsCount) {
+        const card = flashcards[currentIndex];
+        const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+        if (!alreadyAdded) {
+            mistakeCards.push(JSON.parse(JSON.stringify(card)));
+        }
+    }
+
+    // Update word statistics only when both sides are answered
     if (frontAnswered && backAnswered) {
         const bothCorrect = frontCorrect && backCorrect;
-
-        // Track mistakes (only during main session, not during mistake review)
-        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalFlashcardsCount) {
-            const card = flashcards[currentIndex];
-            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
-            if (!alreadyAdded) {
-                mistakeCards.push(JSON.parse(JSON.stringify(card)));
-            }
-        }
-
-        // Update word statistics
         updateWordStatistics(flashcards[currentIndex].word, bothCorrect);
     }
 
@@ -423,8 +423,37 @@ function showCard(index) {
     // Update card content
     document.getElementById('front-sentence').textContent = card.en.replace(/_+/g, '______');
     document.getElementById('back-sentence').textContent = card.ru.replace(/_+/g, '______');
-    document.getElementById('front-lang').textContent = 'EN';
-    document.getElementById('back-lang').textContent = targetLanguage;
+
+    // Dynamically determine language badges based on word_language
+    const wordLang = card.word_language || 'English'; // Default to English if not specified
+    let frontLangCode, backLangCode;
+
+    if (wordLang === 'English') {
+        frontLangCode = 'EN';
+        backLangCode = targetLanguage;
+    } else if (wordLang === 'Russian' || wordLang === 'Ukrainian') {
+        // If word is in target language, show it on front and English on back
+        frontLangCode = wordLang === 'Russian' ? 'RU' : 'UK';
+        backLangCode = 'EN';
+    } else {
+        // For other languages, show language code on front and target on back
+        const langCodes = {
+            'Spanish': 'ES',
+            'French': 'FR',
+            'German': 'DE',
+            'Italian': 'IT',
+            'Portuguese': 'PT',
+            'Chinese': 'ZH',
+            'Japanese': 'JA',
+            'Korean': 'KO',
+            'Arabic': 'AR'
+        };
+        frontLangCode = langCodes[wordLang] || wordLang.substring(0, 2).toUpperCase();
+        backLangCode = targetLanguage;
+    }
+
+    document.getElementById('front-lang').textContent = frontLangCode;
+    document.getElementById('back-lang').textContent = backLangCode;
 
     // Render options with saved state
     renderOptions('front-options', card.options_en || [], card.word, 'en');
@@ -599,20 +628,20 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
     // Show explanation immediately for this side only
     showExplanationForSide(side);
 
-    // If both sides answered, track mistakes
+    // Track mistakes if at least one side is answered incorrectly
+    const hasIncorrectAnswer = (frontAnswered && !frontCorrect) || (backAnswered && !backCorrect);
+
+    if (!isReviewingMistakes && hasIncorrectAnswer && currentIndex < originalFlashcardsCount) {
+        const card = flashcards[currentIndex];
+        const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+        if (!alreadyAdded) {
+            mistakeCards.push(JSON.parse(JSON.stringify(card)));
+        }
+    }
+
+    // Update word statistics only when both sides are answered
     if (frontAnswered && backAnswered) {
         const bothCorrect = frontCorrect && backCorrect;
-
-        // Track mistakes (only during main session, not during mistake review)
-        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalFlashcardsCount) {
-            const card = flashcards[currentIndex];
-            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
-            if (!alreadyAdded) {
-                mistakeCards.push(JSON.parse(JSON.stringify(card)));
-            }
-        }
-
-        // Update word statistics
         updateWordStatistics(flashcards[currentIndex].word, bothCorrect);
     }
 

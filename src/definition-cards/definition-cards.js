@@ -210,17 +210,14 @@ function handleManualResult(side, result, input, correctAnswer) {
     // Replace blanks immediately for this side only
     replaceBlanksForSide(side);
 
-    // If both sides answered, track mistakes
-    if (frontAnswered && backAnswered) {
-        const bothCorrect = frontCorrect && backCorrect;
+    // Track mistakes if at least one side is answered incorrectly
+    const hasIncorrectAnswer = (frontAnswered && !frontCorrect) || (backAnswered && !backCorrect);
 
-        // Track mistakes (only during main session, not during mistake review)
-        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalCardsCount) {
-            const card = cards[currentIndex];
-            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
-            if (!alreadyAdded) {
-                mistakeCards.push(JSON.parse(JSON.stringify(card)));
-            }
+    if (!isReviewingMistakes && hasIncorrectAnswer && currentIndex < originalCardsCount) {
+        const card = cards[currentIndex];
+        const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+        if (!alreadyAdded) {
+            mistakeCards.push(JSON.parse(JSON.stringify(card)));
         }
     }
 
@@ -420,9 +417,36 @@ function showCard(index) {
         document.getElementById('card-transcription-ru').classList.add('hidden');
     }
 
-    // Update badges
-    document.getElementById('front-lang').textContent = 'EN';
-    document.getElementById('back-lang').textContent = targetLanguage;
+    // Dynamically determine language badges based on word_language
+    const wordLang = card.word_language || 'English'; // Default to English if not specified
+    let frontLangCode, backLangCode;
+
+    if (wordLang === 'English') {
+        frontLangCode = 'EN';
+        backLangCode = targetLanguage;
+    } else if (wordLang === 'Russian' || wordLang === 'Ukrainian') {
+        // If word is in target language, show it on front and English on back
+        frontLangCode = wordLang === 'Russian' ? 'RU' : 'UK';
+        backLangCode = 'EN';
+    } else {
+        // For other languages, show language code on front and target on back
+        const langCodes = {
+            'Spanish': 'ES',
+            'French': 'FR',
+            'German': 'DE',
+            'Italian': 'IT',
+            'Portuguese': 'PT',
+            'Chinese': 'ZH',
+            'Japanese': 'JA',
+            'Korean': 'KO',
+            'Arabic': 'AR'
+        };
+        frontLangCode = langCodes[wordLang] || wordLang.substring(0, 2).toUpperCase();
+        backLangCode = targetLanguage;
+    }
+
+    document.getElementById('front-lang').textContent = frontLangCode;
+    document.getElementById('back-lang').textContent = backLangCode;
 
     // Render Examples (will be replaced with answers if side was answered)
     renderExamples('examples-container-en', card.definitions, 'en');
@@ -613,17 +637,14 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
     // Replace blanks immediately for this side only
     replaceBlanksForSide(side);
 
-    // If both sides answered, track mistakes
-    if (frontAnswered && backAnswered) {
-        const bothCorrect = frontCorrect && backCorrect;
+    // Track mistakes if at least one side is answered incorrectly
+    const hasIncorrectAnswer = (frontAnswered && !frontCorrect) || (backAnswered && !backCorrect);
 
-        // Track mistakes (only during main session, not during mistake review)
-        if (!isReviewingMistakes && !bothCorrect && currentIndex < originalCardsCount) {
-            const card = cards[currentIndex];
-            const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
-            if (!alreadyAdded) {
-                mistakeCards.push(JSON.parse(JSON.stringify(card)));
-            }
+    if (!isReviewingMistakes && hasIncorrectAnswer && currentIndex < originalCardsCount) {
+        const card = cards[currentIndex];
+        const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+        if (!alreadyAdded) {
+            mistakeCards.push(JSON.parse(JSON.stringify(card)));
         }
     }
 

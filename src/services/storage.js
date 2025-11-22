@@ -25,6 +25,8 @@ export class StorageService {
         if (!list.find(w => w.word === wordData.word)) {
             list.push({
                 ...wordData,
+                translation: typeof wordData.translation === 'object' ? JSON.stringify(wordData.translation) : String(wordData.translation || ''),
+                transcription: typeof wordData.transcription === 'object' ? JSON.stringify(wordData.transcription) : String(wordData.transcription || ''),
                 id: Date.now().toString(),
                 addedAt: Date.now(),
                 nextReview: Date.now(), // Review immediately/soon
@@ -75,7 +77,7 @@ export class StorageService {
 
     async renameCategory(oldName, newName) {
         if (oldName === 'default') return; // Cannot rename default
-        
+
         const categories = await this.getCategories();
         const index = categories.indexOf(oldName);
         if (index !== -1) {

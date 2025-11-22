@@ -5,7 +5,7 @@ export class GeminiService {
         this.CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
     }
 
-    async explainWord(word, apiKey, model = 'gemini-2.0-flash', language = 'ru') {
+    async explainWord(word, apiKey, model = 'gemini-2.0-flash', language = 'ru', overrideLanguage = null) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const languageNames = {
@@ -16,24 +16,44 @@ export class GeminiService {
 
         const userInterfaceLang = languageNames[language] || 'Russian';
 
-        const prompt = `
-        IMPORTANT: First, detect what language the word "${word}" is in.
+        let prompt;
+        if (overrideLanguage) {
+            // User specified the language - don't detect, use the specified one
+            prompt = `
+            The word "${word}" is in ${overrideLanguage}.
 
-        - If the word is in English, translate it to ${userInterfaceLang}
-        - If the word is in ${userInterfaceLang} (Russian/Ukrainian/etc), translate it to English
-        - If the word is in another language, translate it to both English and ${userInterfaceLang}
+            ALWAYS provide translations in ALL languages as an object.
 
-        Provide the response in JSON format with the following fields:
-        - word_language: The detected language of the input word (e.g., "English", "Russian", "Ukrainian", etc.)
-        - translation: The translation (if word is English, translate to ${userInterfaceLang}; if word is ${userInterfaceLang}, translate to English)
-        - transcription: The phonetic transcription (IPA format) of the ORIGINAL word "${word}"
-        - explanation: A brief explanation of the meaning in ${userInterfaceLang}
-        - examples: An array of 2 short example sentences using the ORIGINAL word "${word}"
-        - distractors: An array of 3 incorrect translations for a multiple choice quiz
-        - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong
+            Provide the response in JSON format with the following fields:
+            - word_language: "${overrideLanguage}" (use exactly this value)
+            - translation: ALWAYS an object with ALL translation variants: {"english": "translation to English", "russian": "translation to Russian", "ukrainian": "translation to Ukrainian"}. Include all three keys even if some languages match the original word.
+            - transcription: The phonetic transcription (IPA format) of the ORIGINAL word "${word}"
+            - explanation: A brief explanation of the meaning in ${userInterfaceLang}
+            - examples: An array of 2 short example sentences using the ORIGINAL word "${word}"
+            - distractors: An array of 3 incorrect translations for a multiple choice quiz
+            - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong
 
-        Return ONLY the JSON.
-        `;
+            Return ONLY the JSON.
+            `;
+        } else {
+            // Auto-detect language
+            prompt = `
+            IMPORTANT: First, detect what language the word "${word}" is in.
+
+            ALWAYS provide translations in ALL languages as an object.
+
+            Provide the response in JSON format with the following fields:
+            - word_language: The detected language of the input word (e.g., "English", "Russian", "Ukrainian", "Spanish", etc.)
+            - translation: ALWAYS an object with ALL translation variants: {"english": "translation to English", "russian": "translation to Russian", "ukrainian": "translation to Ukrainian"}. Include all three keys even if some languages match the original word.
+            - transcription: The phonetic transcription (IPA format) of the ORIGINAL word "${word}"
+            - explanation: A brief explanation of the meaning in ${userInterfaceLang}
+            - examples: An array of 2 short example sentences using the ORIGINAL word "${word}"
+            - distractors: An array of 3 incorrect translations for a multiple choice quiz
+            - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong
+
+            Return ONLY the JSON.
+            `;
+        }
 
         const response = await fetch(url, {
             method: 'POST',
@@ -111,23 +131,24 @@ export class GeminiService {
         const prompt = `
     Create fill-in-the-blank flashcard exercises for EACH of the following words: ${wordList}
 
-    CRITICAL LANGUAGE DETECTION: For EACH word, you MUST first detect what language it is in (English, Russian, Ukrainian, Spanish, German, French, ANY language):
-    - If word is in ENGLISH → create English sentence on "front" (en) and ${targetLang} sentence on "back" (ru)
-    - If word is in ${targetLang} → create ${targetLang} sentence on "front" (en) and English sentence on "back" (ru)  
-    - If word is in ANY OTHER language → create sentence in that language on "front" (en) and ${targetLang} sentence on "back" (ru)
+    CRITICAL LANGUAGE DETECTION: For EACH word, you MUST first detect what language it is in (English, Russian, Ukrainian, Spanish, German, French, Japanese, ANY language):
+    - Detect the ORIGINAL language of the word
+    - Determine the TARGET language for UI (${targetLang})
+    - If word is in ${targetLang}, then TARGET language should be English instead
 
     IMPORTANT: Do NOT assume all words are English. Each word could be in ANY language!
 
     For each exercise, create:
-    1. A sentence in the word's ORIGINAL language with the word replaced by _____ - this goes on "front" (en field)
-    2. A sentence in the OPPOSITE language with translation replaced by _____ - this goes on "back" (ru field)
-    3. The correct missing word in its ORIGINAL language
-    4. Three distractors in the word's ORIGINAL language (options_en) - plausible but wrong
-    5. Three distractors in the OPPOSITE language (options_ru) - translations of the original distractors
-    6. A subtle hint in the ORIGINAL language
-    7. A subtle hint in the OPPOSITE language
-    8. Explanation in ORIGINAL language  
-    9. Explanation in OPPOSITE language
+    1. Detected language of the word (word_language field - e.g., "English", "Russian", "German", etc.)
+    2. A sentence in the word's ORIGINAL language with the word replaced by _____
+    3. A sentence in the TARGET/OPPOSITE language with translation replaced by _____
+    4. The correct missing word in its ORIGINAL language
+    5. Three distractors in the word's ORIGINAL language - plausible but wrong
+    6. Three distractors in the TARGET language - translations of the original distractors
+    7. A subtle hint in the ORIGINAL language
+    8. A subtle hint in the TARGET language
+    9. Explanation in ORIGINAL language
+    10. Explanation in TARGET language
 
     Requirements:
     - Use different words for each exercise
@@ -138,38 +159,40 @@ export class GeminiService {
     - Hints should guide thinking without revealing the answer
     - Explanations should teach the word usage
 
-        CRITICAL VALIDATION RULES FOR ${targetLang.toUpperCase()} TRANSLATIONS:
-        - The ${targetLang} translation of the correct English word MUST be the ONLY logically and semantically correct answer for the ${targetLang} sentence
-        - Double-check that NONE of the ${targetLang} distractors would make semantic sense in the ${targetLang} sentence context
-        - ${targetLang} distractors must be grammatically plausible but contextually and semantically wrong
-        - Ensure the ${targetLang} sentence context strongly favors ONLY the correct answer
+        CRITICAL VALIDATION RULES FOR TARGET LANGUAGE TRANSLATIONS:
+        - The TARGET language translation of the correct word MUST be the ONLY logically and semantically correct answer for the TARGET language sentence
+        - Double-check that NONE of the TARGET language distractors would make semantic sense in the TARGET language sentence context
+        - TARGET language distractors must be grammatically plausible but contextually and semantically wrong
+        - Ensure the TARGET language sentence context strongly favors ONLY the correct answer
         - Example of BAD options: "The artist is known for _____ masterpieces" with options including "copying" as correct - this is WRONG because "destroying" might also make sense. The sentence must be written so only ONE answer is logically correct.
-        - After generating ${targetLang} options, re-read the ${targetLang} sentence with EACH option to verify only the correct one makes logical sense
+        - After generating TARGET language options, re-read the TARGET language sentence with EACH option to verify only the correct one makes logical sense
 
-        Return ONLY a JSON array with this structure (NOTE: use 'ru' keys for ${targetLang} content):
+        Return ONLY a JSON array with this structure:
         [
           {
+            "word_language": "English",
             "en": "I love to ___ movies on weekends",
-            "ru": "Я люблю ___ фильмы по выходным", // ${targetLang} translation
+            "ru": "Я люблю ___ фильмы по выходным",
             "word": "watch",
             "options_en": ["watch", "read", "listen", "play"],
-            "options_ru": ["смотреть", "читать", "слушать", "играть"], // ${targetLang} options
+            "options_ru": ["смотреть", "читать", "слушать", "играть"],
             "correct_answer_en": "watch",
-            "correct_answer_ru": "смотреть", // ${targetLang} correct answer
+            "correct_answer_ru": "смотреть",
             "hint_en": "Think about what you do with your eyes when enjoying visual content.",
-            "hint_ru": "Подумайте, что вы делаете глазами, когда наслаждаетесь визуальным контентом.", // ${targetLang} hint
+            "hint_ru": "Подумайте, что вы делаете глазами, когда наслаждаетесь визуальным контентом.",
             "explanation_en": "The correct answer is 'watch' because...",
-            "explanation_ru": "Правильный ответ - 'смотреть', потому что..." // ${targetLang} explanation
+            "explanation_ru": "Правильный ответ - 'смотреть', потому что..."
           },
           ...
         ]
 
         IMPORTANT:
+        - You MUST include "word_language" field indicating the detected language of the word
         - In options arrays, the correct answer must be included and shuffled randomly among the wrong answers
-        - The ${targetLang} options must correspond exactly by index to the English options (if English option 1 is "watch", ${targetLang} option 1 must be the translation of "watch")
+        - The TARGET language options must correspond exactly by index to the ORIGINAL language options
         - You MUST include "correct_answer_en" and "correct_answer_ru" fields that contain the exact correct answer text (word or phrase) that should fill the blank
-        - The correct_answer_en and correct_answer_ru must EXACTLY match one of the options in their respective options arrays
-        - Validate that in the ${targetLang} sentence, ONLY the correct ${targetLang} option makes complete logical and semantic sense
+        - The correct answers must EXACTLY match one of the options in their respective options arrays
+        - Validate that in the TARGET language sentence, ONLY the correct TARGET language option makes complete logical and semantic sense
 
         Return ONLY the JSON array, no explanations.
         `;
@@ -233,20 +256,22 @@ export class GeminiService {
     Return ONLY a JSON array with this structure:
     [
       {
-        "word": "adventure",  // Original word in ANY language
-        "translation": "приключение",  // Translation to opposite language
-        "transcription": "/ədˈventʃər/",  // IMPORTANT: transcription MUST be a string in quotes
+        "word_language": "English",
+        "word": "adventure",
+        "translation": "приключение",
+        "transcription": "/ədˈventʃər/",
         "example": "We risked losing a lot of money in this adventure.",
-        "distractors_en": ["experience", "journey", "challenge"],  // In SAME language as word
-        "distractors_ru": ["опыт", "путешествие", "вызов"]  // In OPPOSITE language
+        "distractors_en": ["experience", "journey", "challenge"],
+        "distractors_ru": ["опыт", "путешествие", "вызов"]
       },
       {
-        "word": "привет",  // Russian word example
+        "word_language": "Russian",
+        "word": "привет",
         "translation": "hello",
-        "transcription": "/prʲɪˈvʲet/",  // IMPORTANT: transcription MUST be a string in quotes
+        "transcription": "/prʲɪˈvʲet/",
         "example": "Привет, как дела?",
-        "distractors_en": ["пока", "здравствуй", "до свидания"],  // Russian distractors
-        "distractors_ru": ["bye", "greetings", "goodbye"]  // English translations
+        "distractors_en": ["пока", "здравствуй", "до свидания"],
+        "distractors_ru": ["bye", "greetings", "goodbye"]
       }
     ]
 
@@ -337,6 +362,7 @@ export class GeminiService {
         Return ONLY a JSON array with this structure (NOTE: use 'ru' keys for ${targetLang} content):
         [
           {
+            "word_language": "English",
             "word": "deny",
             "word_ru": "отрицать, отказывать", // ${targetLang} translation
             "transcription": "/dɪˈnaɪ/",

@@ -39,7 +39,7 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'EXPLAIN_WORD') {
-        handleExplainWord(message.word).then(sendResponse);
+        handleExplainWord(message.word, message.overrideLanguage).then(sendResponse);
         return true; // Async response
     }
     if (message.type === 'ADD_TO_LEARN') {
@@ -95,7 +95,7 @@ function getDefaultLanguage() {
     return 'en';
 }
 
-async function handleExplainWord(word) {
+async function handleExplainWord(word, overrideLanguage = null) {
     try {
         const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'appLanguage']);
         const apiKey = result.GEMINI_API_KEY;
@@ -106,7 +106,7 @@ async function handleExplainWord(word) {
 
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
-        const explanation = await gemini.explainWord(word, apiKey, model, language);
+        const explanation = await gemini.explainWord(word, apiKey, model, language, overrideLanguage);
         return { success: true, data: explanation };
     } catch (e) {
         console.error(e);
@@ -116,34 +116,57 @@ async function handleExplainWord(word) {
 
 async function handleGenerateFlashcards() {
     try {
-        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'flashcardsWordsLimit']);
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'simpleFlashcardsWordsLimit', 'simpleFlashcardsExercisesLimit']);
         const apiKey = result.GEMINI_API_KEY;
 
         if (!apiKey) {
             return { success: false, error: 'API Key not set. Please configure in extension settings.' };
         }
 
-        // Get learning words and history
-        const learningWords = await storage.getLearningList();
+        // Get all learning words
+        let learningWords = await storage.getLearningList();
+
+        // Filter by active categories
+        const categorySettings = await storage.getCategorySettings();
+        learningWords = learningWords.filter(word => {
+            const category = word.category || 'default';
+            // Include word if category is active (default to true if not set)
+            return categorySettings[category]?.active !== false;
+        });
+
+        // Include history if enabled
         const includeHistory = result.flashcardsIncludeHistory !== false;
-        const historyResult = includeHistory ? await chrome.storage.local.get(['wordHistory']) : { wordHistory: [] };
-        const historyWords = historyResult.wordHistory || [];
+        let historyWords = [];
+        if (includeHistory) {
+            const historyResult = await chrome.storage.local.get(['wordHistory']);
+            historyWords = historyResult.wordHistory || [];
+            // Filter history by active categories too
+            historyWords = historyWords.filter(word => {
+                const category = word.category || 'default';
+                return categorySettings[category]?.active !== false;
+            });
+        }
 
         let allWords = [...learningWords, ...historyWords];
 
         if (allWords.length === 0) {
-            return { success: false, error: 'No words available. Add some words first!' };
+            return { success: false, error: 'No words available. Add some words first or enable categories in the word list!' };
         }
 
         allWords = shuffleArray(allWords);
-        const wordsLimit = result.flashcardsWordsLimit || 25;
+        const wordsLimit = result.simpleFlashcardsWordsLimit || 25;
+        const exercisesLimit = result.simpleFlashcardsExercisesLimit || 25;
         const limitedWords = allWords.slice(0, wordsLimit);
 
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
 
         // Generate simple flashcards (word + translation + distractors)
-        const flashcards = await gemini.generateSimpleFlashcards(limitedWords, apiKey, model, language);
+        let flashcards = await gemini.generateSimpleFlashcards(limitedWords, apiKey, model, language);
+
+        if (flashcards && flashcards.length > exercisesLimit) {
+            flashcards = shuffleArray(flashcards).slice(0, exercisesLimit);
+        }
 
         return { success: true, data: flashcards, targetLanguage: language };
     } catch (e) {
@@ -161,15 +184,34 @@ async function handleGenerateContextCards() {
             return { success: false, error: 'API Key not set. Please configure in extension settings.' };
         }
 
-        const learningWords = await storage.getLearningList();
+        // Get all learning words
+        let learningWords = await storage.getLearningList();
+
+        // Filter by active categories
+        const categorySettings = await storage.getCategorySettings();
+        learningWords = learningWords.filter(word => {
+            const category = word.category || 'default';
+            // Include word if category is active (default to true if not set)
+            return categorySettings[category]?.active !== false;
+        });
+
+        // Include history if enabled
         const includeHistory = result.flashcardsIncludeHistory !== false;
-        const historyResult = includeHistory ? await chrome.storage.local.get(['wordHistory']) : { wordHistory: [] };
-        const historyWords = historyResult.wordHistory || [];
+        let historyWords = [];
+        if (includeHistory) {
+            const historyResult = await chrome.storage.local.get(['wordHistory']);
+            historyWords = historyResult.wordHistory || [];
+            // Filter history by active categories too
+            historyWords = historyWords.filter(word => {
+                const category = word.category || 'default';
+                return categorySettings[category]?.active !== false;
+            });
+        }
 
         let allWords = [...learningWords, ...historyWords];
 
         if (allWords.length === 0) {
-            return { success: false, error: 'No words available. Add some words first!' };
+            return { success: false, error: 'No words available. Add some words first or enable categories in the word list!' };
         }
 
         allWords = shuffleArray(allWords);
@@ -216,7 +258,7 @@ async function handleUpdateFlashcardStats(word, success) {
 
 async function handleGenerateDefinitionCards() {
     try {
-        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'appLanguage', 'defCardsWordsLimit']);
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'geminiModel', 'flashcardsIncludeHistory', 'appLanguage', 'defCardsWordsLimit', 'defCardsExercisesLimit']);
         const apiKey = result.GEMINI_API_KEY;
 
         if (!apiKey) {
@@ -224,20 +266,49 @@ async function handleGenerateDefinitionCards() {
         }
 
         // Get learning words
-        const learningWords = await storage.getLearningList();
+        let learningWords = await storage.getLearningList();
 
-        if (learningWords.length === 0) {
-            return { success: false, error: 'No words available. Add some words first!' };
+        // Filter by active categories
+        const categorySettings = await storage.getCategorySettings();
+        learningWords = learningWords.filter(word => {
+            const category = word.category || 'default';
+            // Include word if category is active (default to true if not set)
+            return categorySettings[category]?.active !== false;
+        });
+
+        // Include history if enabled
+        const includeHistory = result.flashcardsIncludeHistory !== false;
+        let historyWords = [];
+        if (includeHistory) {
+            const historyResult = await chrome.storage.local.get(['wordHistory']);
+            historyWords = historyResult.wordHistory || [];
+            // Filter history by active categories too
+            historyWords = historyWords.filter(word => {
+                const category = word.category || 'default';
+                return categorySettings[category]?.active !== false;
+            });
+        }
+
+        let allWords = [...learningWords, ...historyWords];
+
+        if (allWords.length === 0) {
+            return { success: false, error: 'No words available. Add some words first or enable categories in the word list!' };
         }
 
         // Shuffle and limit
-        let limitedWords = shuffleArray(learningWords);
-        const wordsLimit = result.defCardsWordsLimit || 10;
+        let limitedWords = shuffleArray(allWords);
+        const wordsLimit = result.defCardsWordsLimit || 25;
+        const exercisesLimit = result.defCardsExercisesLimit || 25;
         limitedWords = limitedWords.slice(0, wordsLimit);
 
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
-        const cards = await gemini.generateDefinitionCards(limitedWords, apiKey, model, language);
+        let cards = await gemini.generateDefinitionCards(limitedWords, apiKey, model, language);
+
+        if (cards && cards.length > exercisesLimit) {
+            cards = shuffleArray(cards).slice(0, exercisesLimit);
+        }
+
         return { success: true, data: cards, targetLanguage: language };
     } catch (e) {
         console.error(e);

@@ -177,6 +177,14 @@ async function loadReviewSession() {
         // Apply limit to due words
         currentReviewWords = dueWords.slice(0, tasksLimit);
     }
+    // Sanitize words to prevent [object Object] issues
+    currentReviewWords = currentReviewWords.map(w => ({
+        ...w,
+        word: typeof w.word === 'object' ? JSON.stringify(w.word) : String(w.word || ''),
+        translation: typeof w.translation === 'object' ? JSON.stringify(w.translation) : String(w.translation || ''),
+        transcription: typeof w.transcription === 'object' ? JSON.stringify(w.transcription) : String(w.transcription || '')
+    }));
+
     const wordsToReviewText = i18n.getMessage('words_to_review');
     document.getElementById('words-count').textContent = `${currentReviewWords.length} ${wordsToReviewText}`;
 
@@ -449,7 +457,7 @@ function handleOptionClick(isCorrect, element, correctAnswer) {
     // If wrong, also highlight correct answer
     if (!isCorrect) {
         allButtons.forEach(btn => {
-            if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+            if (btn.textContent.toLowerCase().trim() === String(correctAnswer).toLowerCase().trim()) {
                 btn.classList.add('correct');
             }
         });

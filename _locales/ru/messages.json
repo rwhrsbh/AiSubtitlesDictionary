@@ -306,13 +306,13 @@
         "message": "Лимит заданий повторения (за сессию)"
     },
     "settings_flashcards_words_limit": {
-        "message": "Лимит слов для флеш-карточек"
+        "message": "Карточки Контекста: Лимит слов"
     },
     "settings_flashcards_exercises_limit": {
-        "message": "Лимит упражнений флеш-карточек"
+        "message": "Карточки Контекста: Лимит упражнений"
     },
     "settings_def_cards_words_limit": {
-        "message": "Лимит слов карточек определений"
+        "message": "Карточки Определений: Лимит слов"
     },
     "flashcards_unanswered_warning": {
         "message": "У вас есть карты без ответов! Перенаправление через"
