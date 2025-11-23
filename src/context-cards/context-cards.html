@@ -31,6 +31,9 @@
             <div class="card" id="flashcard">
                 <div class="card-inner">
                     <div class="card-face card-front">
+                        <div class="category-badge" id="card-category-front"
+                            style="display:none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 0.8em; opacity: 0.8; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 12px; z-index: 10;">
+                        </div>
                         <div class="language-badge" id="front-lang">EN</div>
                         <div class="card-content">
                             <p class="sentence" id="front-sentence">Click to flip</p>
@@ -54,6 +57,9 @@
                         <div class="hint" data-i18n="flashcards_flip_instruction">Click option or flip card</div>
                     </div>
                     <div class="card-face card-back">
+                        <div class="category-badge" id="card-category-back"
+                            style="display:none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 0.8em; opacity: 0.8; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 12px; z-index: 10;">
+                        </div>
                         <div class="language-badge" id="back-lang">RU</div>
                         <div class="card-content">
                             <p class="sentence" id="back-sentence">Нажмите чтобы перевернуть</p>

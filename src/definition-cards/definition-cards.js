@@ -448,6 +448,24 @@ function showCard(index) {
     document.getElementById('front-lang').textContent = frontLangCode;
     document.getElementById('back-lang').textContent = backLangCode;
 
+    // Show Category
+    const categoryBadgeFront = document.getElementById('card-category-front');
+    const categoryBadgeBack = document.getElementById('card-category-back');
+
+    if (card.category) {
+        let text = card.category;
+        if (card.word_language) {
+            text += ` • ${card.word_language}`;
+        }
+        categoryBadgeFront.textContent = text;
+        categoryBadgeBack.textContent = text;
+        categoryBadgeFront.style.display = 'block';
+        categoryBadgeBack.style.display = 'block';
+    } else {
+        categoryBadgeFront.style.display = 'none';
+        categoryBadgeBack.style.display = 'none';
+    }
+
     // Render Examples (will be replaced with answers if side was answered)
     renderExamples('examples-container-en', card.definitions, 'en');
     renderExamples('examples-container-ru', card.definitions, 'ru');
@@ -732,13 +750,13 @@ function showMistakeReviewScreen() {
         msg.style.borderRadius = '16px';
         msg.style.marginBottom = '24px';
         msg.innerHTML = `
-            <div style="text-align: center;">
-                <div style="font-size: 32px; margin-bottom: 12px;">📝</div>
-                <div style="font-weight: 700; margin-bottom: 8px;">${i18n.getMessage('mistakes_review_title')}</div>
-                <div style="font-size: 16px; opacity: 0.9;">${i18n.getMessage('mistakes_review_subtitle')}</div>
-                <div style="margin-top: 16px; font-size: 18px; font-weight: 600;">${mistakeCards.length} ${mistakeCards.length === 1 ? i18n.getMessage('card_singular') : i18n.getMessage('card_plural')}</div>
-            </div>
-        `;
+        <div style="text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 12px;">📝</div>
+            <div style="font-weight: 700; margin-bottom: 8px;">${i18n.getMessage('mistakes_review_title')}</div>
+            <div style="font-size: 16px; opacity: 0.9;">${i18n.getMessage('mistakes_review_subtitle')}</div>
+            <div style="margin-top: 16px; font-size: 18px; font-weight: 600;">${mistakeCards.length} ${mistakeCards.length === 1 ? i18n.getMessage('card_singular') : i18n.getMessage('card_plural')}</div>
+        </div>
+    `;
         msg.classList.remove('hidden');
 
         // Auto-start mistake review after 3 seconds

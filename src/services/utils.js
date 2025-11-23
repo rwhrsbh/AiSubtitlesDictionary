@@ -89,14 +89,34 @@ export function isCloseMatch(input, target, alternateTarget = null) {
 
 export function formatOptionForDisplay(text) {
     if (!text) return '';
-    // Split by common separators: comma, slash, semicolon, pipe, bullet, tilde, or period followed by space
+
+    // Split by common separators: comma, slash, semicolon, pipe, bullet, tilde
     const variants = text
-        .split(/[,/;|•~]|\.\s+/)
+        .split(/[/;|•~]/)
         .map(v => v.trim())
         .filter(v => v.length > 0);
 
     if (variants.length === 0) return text;
 
-    // Return one random variant
-    return variants[Math.floor(Math.random() * variants.length)];
+    // If only one variant after split, return original text
+    if (variants.length === 1) return text;
+
+    // Check if this looks like a list of variants or a regular sentence
+    // Heuristics:
+    // 1. All variants are short (≤4 words each) - likely a list
+    // 2. Most variants start with lowercase (except first) - likely a list  
+    // 3. No variant is too long (>40 chars) - likely a list
+    // 4. Uses slash separator - very likely a list
+    const hasSlash = text.includes('/');
+    const allShort = variants.every(v => v.split(/\s+/).length <= 4);
+    const noLongVariants = variants.every(v => v.length <= 40);
+    const mostLowercase = variants.slice(1).filter(v => v[0] && v[0] === v[0].toLowerCase()).length >= variants.length / 2;
+
+    // If it looks like a list of variants, return one randomly
+    if (hasSlash || (allShort && noLongVariants && mostLowercase)) {
+        return variants[Math.floor(Math.random() * variants.length)];
+    }
+
+    // Otherwise, return original text as-is (it's likely a sentence)
+    return text;
 }

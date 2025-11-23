@@ -102,6 +102,18 @@ function showCard(index) {
     document.getElementById('current-index').textContent = index + 1;
     updateProgressSidebar();
 
+    // Show Category
+    const categoryBadge = document.getElementById('card-category');
+    if (card.category) {
+        categoryBadge.textContent = card.category;
+        if (card.word_language) {
+            categoryBadge.textContent += ` • ${card.word_language}`;
+        }
+        categoryBadge.style.display = 'block';
+    } else {
+        categoryBadge.style.display = 'none';
+    }
+
     // Show Translation as the "Question" (Front of card)
     document.getElementById('card-front-text').textContent = formatOptionForDisplay(card.translation);
     document.getElementById('card-transcription').textContent = '';

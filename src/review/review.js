@@ -374,8 +374,11 @@ function showQuiz(wordData, mode) {
 
     // Show category
     if (categoryBadge) {
-        categoryBadge.textContent = (wordData.category || 'default').toUpperCase();
-        categoryBadge.style.display = 'block';
+        categoryBadge.textContent = wordData.category || 'default';
+        if (wordData.word_language) {
+            categoryBadge.textContent += ` • ${wordData.word_language}`;
+        }
+        categoryBadge.style.display = 'inline-block';
     }
 
     // Reset state

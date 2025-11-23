@@ -164,6 +164,15 @@ async function handleGenerateFlashcards() {
         // Generate simple flashcards (word + translation + distractors)
         let flashcards = await gemini.generateSimpleFlashcards(limitedWords, apiKey, model, language);
 
+        // Map categories back to flashcards
+        flashcards = flashcards.map(card => {
+            const originalWord = limitedWords.find(w => w.word.toLowerCase() === card.word.toLowerCase());
+            return {
+                ...card,
+                category: originalWord ? (originalWord.category || 'default') : 'default'
+            };
+        });
+
         if (flashcards && flashcards.length > exercisesLimit) {
             flashcards = shuffleArray(flashcards).slice(0, exercisesLimit);
         }
@@ -223,6 +232,17 @@ async function handleGenerateContextCards() {
         const language = result.appLanguage || getDefaultLanguage();
 
         let flashcards = await gemini.generateFlashcards(limitedWords, [], apiKey, model, language);
+
+        // Map categories back to flashcards
+        flashcards = flashcards.map(card => {
+            // Note: generateFlashcards might return words in different case or slightly modified, 
+            // but usually it keeps the word field.
+            const originalWord = limitedWords.find(w => w.word.toLowerCase() === card.word.toLowerCase());
+            return {
+                ...card,
+                category: originalWord ? (originalWord.category || 'default') : 'default'
+            };
+        });
 
         if (flashcards && flashcards.length > exercisesLimit) {
             flashcards = shuffleArray(flashcards).slice(0, exercisesLimit);
@@ -304,6 +324,15 @@ async function handleGenerateDefinitionCards() {
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
         let cards = await gemini.generateDefinitionCards(limitedWords, apiKey, model, language);
+
+        // Map categories back to cards
+        cards = cards.map(card => {
+            const originalWord = limitedWords.find(w => w.word.toLowerCase() === card.word.toLowerCase());
+            return {
+                ...card,
+                category: originalWord ? (originalWord.category || 'default') : 'default'
+            };
+        });
 
         if (cards && cards.length > exercisesLimit) {
             cards = shuffleArray(cards).slice(0, exercisesLimit);

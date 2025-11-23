@@ -461,6 +461,24 @@ function showCard(index) {
     document.getElementById('front-lang').textContent = frontLangCode;
     document.getElementById('back-lang').textContent = backLangCode;
 
+    // Show Category
+    const categoryBadgeFront = document.getElementById('card-category-front');
+    const categoryBadgeBack = document.getElementById('card-category-back');
+
+    if (card.category) {
+        let text = card.category;
+        if (card.word_language) {
+            text += ` • ${card.word_language}`;
+        }
+        categoryBadgeFront.textContent = text;
+        categoryBadgeBack.textContent = text;
+        categoryBadgeFront.style.display = 'block';
+        categoryBadgeBack.style.display = 'block';
+    } else {
+        categoryBadgeFront.style.display = 'none';
+        categoryBadgeBack.style.display = 'none';
+    }
+
     // Render options with saved state
     renderOptions('front-options', card.options_en || [], card.word, 'en');
     renderOptions('back-options', card.options_ru || [], card.word, 'ru');

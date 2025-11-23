@@ -587,6 +587,7 @@ body {
 }
 
 @media (max-width: 768px) {
+
     .progress-box.partial-left-correct::before,
     .progress-box.partial-left-incorrect::before {
         border-width: calc(15px + 2px) calc(15px + 2px) 0 0;
@@ -613,7 +614,6 @@ body {
     animation: fadeIn 0.5s ease-out forwards;
 }
 
-
 /* Responsive */
 @media (max-width: 768px) {
     .card-word {
@@ -639,4 +639,21 @@ body {
         height: 30px;
         font-size: 10px;
     }
+}
+
+.category-badge {
+    display: inline-block;
+    font-size: 0.8em;
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
 }
