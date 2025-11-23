@@ -103,9 +103,71 @@
             <label data-i18n="flashcards_settings">Flashcards Settings</label>
             <div class="checkbox-group">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="flashcards-include-history" checked>
+                    <input type="checkbox" id="flashcards-include-history">
                     <span data-i18n="settings_flashcards_history">Include History words in Flashcards</span>
                 </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label data-i18n="tts_settings">TTS (Speech) Settings</label>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="tts-enabled" checked>
+                    <span data-i18n="settings_tts_enabled">Enable TTS Pronunciation</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="tts-auto-generate" checked>
+                    <span data-i18n="settings_tts_auto_generate">Auto-generate speech when adding words</span>
+                </label>
+            </div>
+            <div style="margin-top: 12px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                    data-i18n="settings_tts_difficulty">Speaking Difficulty</label>
+                <select id="tts-difficulty" class="model-select">
+                    <option value="A1">A1 - Very slowly and clearly</option>
+                    <option value="A2">A2 - Slowly and clearly</option>
+                    <option value="B1">B1 - Moderate pace</option>
+                    <option value="B2" selected>B2 - Natural native speaker</option>
+                    <option value="C1">C1 - Quick and fluent</option>
+                    <option value="C2">C2 - Very quick with nuances</option>
+                </select>
+            </div>
+            <div style="margin-top: 12px;">
+                <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                    data-i18n="settings_tts_voice">Voice Model</label>
+                <select id="tts-voice" class="model-select">
+                    <option value="Zephyr" selected>Zephyr - Bright, Higher pitch</option>
+                    <option value="Puck">Puck - Upbeat, Middle pitch</option>
+                    <option value="Charon">Charon - Informative, Lower pitch</option>
+                    <option value="Kore">Kore - Firm, Middle pitch</option>
+                    <option value="Fenrir">Fenrir - Excitable, Lower middle pitch</option>
+                    <option value="Leda">Leda - Youthful, Higher pitch</option>
+                    <option value="Orus">Orus - Firm, Lower middle pitch</option>
+                    <option value="Aoede">Aoede - Breezy, Middle pitch</option>
+                    <option value="Callirrhoe">Callirrhoe - Easy-going, Middle pitch</option>
+                    <option value="Autonoe">Autonoe - Bright, Middle pitch</option>
+                    <option value="Enceladus">Enceladus - Breathy, Lower pitch</option>
+                    <option value="Iapetus">Iapetus - Clear, Lower middle pitch</option>
+                    <option value="Umbriel">Umbriel - Easy-going, Lower middle pitch</option>
+                    <option value="Algieba">Algieba - Smooth, Lower pitch</option>
+                    <option value="Despina">Despina - Smooth, Middle pitch</option>
+                    <option value="Erinome">Erinome - Clear, Middle pitch</option>
+                    <option value="Algenib">Algenib - Gravelly, Lower pitch</option>
+                    <option value="Rasalgethi">Rasalgethi - Informative, Middle pitch</option>
+                    <option value="Laomedeia">Laomedeia - Upbeat, Higher pitch</option>
+                    <option value="Achernar">Achernar - Soft, Higher pitch</option>
+                    <option value="Alnilam">Alnilam - Firm, Lower middle pitch</option>
+                    <option value="Schedar">Schedar - Even, Lower middle pitch</option>
+                    <option value="Gacrux">Gacrux - Mature, Middle pitch</option>
+                    <option value="Pulcherrima">Pulcherrima - Forward, Middle pitch</option>
+                    <option value="Achird">Achird - Friendly, Lower middle pitch</option>
+                    <option value="Zubenelgenubi">Zubenelgenubi - Casual, Lower middle pitch</option>
+                    <option value="Vindemiatrix">Vindemiatrix - Gentle, Middle pitch</option>
+                    <option value="Sadachbia">Sadachbia - Lively, Lower pitch</option>
+                    <option value="Sadaltager">Sadaltager - Knowledgeable, Middle pitch</option>
+                    <option value="Sulafat">Sulafat - Warm, Middle pitch</option>
+                </select>
             </div>
         </div>
 
@@ -167,12 +229,57 @@
             </div>
         </div>
 
-        <div class="save-container">
-            <button id="save-settings" class="primary-btn" data-i18n="settings_save">Save Settings</button>
-        </div>
         <p style="font-size:12px; color:#666; margin-top:10px;">
             Get your key from <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>.
         </p>
+    </div>
+
+    <!-- Add Word Modal -->
+    <div id="add-word-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="popup_add_word">Add New Word</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <input type="text" id="new-word-input" placeholder="Enter word..." class="full-width-input">
+                </div>
+
+                <div id="word-preview-area" class="hidden">
+                    <div class="loading-spinner hidden" id="word-loading"></div>
+                    <div id="word-result" class="hidden">
+                        <div class="result-row">
+                            <span class="label" data-i18n="popup_label_word">Word:</span>
+                            <span id="preview-word" class="value"></span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label" data-i18n="popup_label_translation">Translation:</span>
+                            <input type="text" id="preview-translation" class="edit-input">
+                        </div>
+                        <div class="result-row">
+                            <span class="label" data-i18n="popup_label_transcription">Transcription:</span>
+                            <input type="text" id="preview-transcription" class="edit-input">
+                        </div>
+                        <div class="result-row">
+                            <span class="label" data-i18n="popup_label_definition">Definition:</span>
+                            <textarea id="preview-definition" class="edit-textarea"></textarea>
+                        </div>
+                        <div class="result-row">
+                            <span class="label" data-i18n="popup_label_language">Language:</span>
+                            <span id="preview-language" class="value"></span>
+                        </div>
+                    </div>
+                    <div id="word-error" class="error-msg hidden"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-add-word" class="secondary-btn" data-i18n="popup_cancel_btn">Cancel</button>
+                <button id="fetch-word-btn" class="primary-btn" data-i18n="popup_search_btn">Search</button>
+                <button id="confirm-add-word" class="primary-btn hidden" data-i18n="popup_add_btn">Add to
+                    Dictionary</button>
+            </div>
+        </div>
     </div>
 
     <script src="popup.js" type="module"></script>

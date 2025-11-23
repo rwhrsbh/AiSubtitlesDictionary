@@ -10,11 +10,13 @@ let cardStates = []; // Track state of each card: null (unanswered), true (corre
 let mistakeCards = []; // Cards that were answered incorrectly
 let isReviewingMistakes = false;
 let originalCardsCount = 0;
+let currentMode = 'speech'; // 'text' or 'speech'
 
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
     localizeHtml();
     setupEventListeners();
+    setupModeToggle();
     loadCards();
 });
 
@@ -48,6 +50,103 @@ function setupEventListeners() {
     document.getElementById('close-btn').addEventListener('click', () => window.close());
 }
 
+// Helper function to convert language name to code
+function getLanguageCode(language) {
+    const langMap = {
+        'English': 'en',
+        'Russian': 'ru',
+        'Ukrainian': 'uk',
+        'Spanish': 'es',
+        'French': 'fr',
+        'German': 'de',
+        'Italian': 'it',
+        'Portuguese': 'pt',
+        'Chinese': 'zh',
+        'Japanese': 'ja',
+        'Korean': 'ko',
+        'Arabic': 'ar'
+    };
+    return langMap[language] || language.toLowerCase().substring(0, 2);
+}
+
+// Helper function to check if card has options available
+function checkHasOptions(card) {
+    const wordLangCode = getLanguageCode(card.word_language || 'English');
+    const distractorsKey = `distractors_${wordLangCode}`;
+
+    // Check primary key first
+    if (card[distractorsKey] && card[distractorsKey].length > 0) {
+        return true;
+    }
+
+    // Fallback: check other common keys
+    const fallbackKeys = ['distractors_en', 'distractors_ru', 'distractors_uk', 'distractors'];
+    for (const key of fallbackKeys) {
+        if (card[key] && card[key].length > 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function setupModeToggle() {
+    const container = document.getElementById('mode-controls-container');
+    if (container) {
+        container.innerHTML = `
+            <button class="mode-btn ${currentMode === 'text' ? 'active' : ''}" data-mode="text">📝 ${i18n.getMessage('mode_text')}</button>
+            <button class="mode-btn ${currentMode === 'options' ? 'active' : ''}" data-mode="options">🔠 ${i18n.getMessage('mode_options')}</button>
+            <button class="mode-btn ${currentMode === 'speech' ? 'active' : ''}" data-mode="speech">🔊 ${i18n.getMessage('mode_speech')}</button>
+        `;
+
+        container.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const mode = btn.dataset.mode; // Use btn instead of e.target to handle clicks on emoji/text
+                if (mode) {
+                    setMode(mode);
+                }
+            });
+        });
+    }
+}
+
+function setMode(mode) {
+    if (currentMode === mode) return;
+
+    currentMode = mode;
+
+    // Update buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        if (btn.dataset.mode === mode) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Handle UI visibility
+    const inputArea = document.getElementById('input-area');
+    const optionsArea = document.getElementById('options-area');
+
+    if (mode === 'options') {
+        inputArea.classList.add('hidden');
+        optionsArea.classList.remove('hidden');
+    } else {
+        inputArea.classList.remove('hidden');
+        optionsArea.classList.add('hidden');
+        // Focus input if switching to text/speech
+        if (!isCardResolved) {
+            setTimeout(() => document.getElementById('answer-input').focus(), 100);
+        }
+    }
+
+    // Reload current card in new mode
+    if (cards.length > 0 && !isCardResolved) {
+        showCard(currentIndex);
+    }
+}
+
 async function loadCards() {
     // Show loading screen
     document.getElementById('loading-screen').classList.remove('hidden');
@@ -79,7 +178,7 @@ async function loadCards() {
             document.getElementById('loading-screen').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
 
-            showCard(0);
+            await showCard(0);
         } else {
             showEmptyState();
         }
@@ -89,7 +188,47 @@ async function loadCards() {
     }
 }
 
-function showCard(index) {
+function updateModeControls(hasTTS) {
+    const container = document.getElementById('mode-controls-container');
+    if (!container) return;
+
+    // If no TTS, disable speech button and force text mode
+    const speechBtn = container.querySelector('[data-mode="speech"]');
+    if (speechBtn) {
+        if (!hasTTS) {
+            speechBtn.disabled = true;
+            speechBtn.style.opacity = '0.5';
+            speechBtn.style.cursor = 'not-allowed';
+            speechBtn.title = 'No audio available';
+        } else {
+            speechBtn.disabled = false;
+            speechBtn.style.opacity = '1';
+            speechBtn.style.cursor = 'pointer';
+            speechBtn.title = 'Switch to speech mode';
+        }
+    }
+
+    // Check if options are available (distractors exist)
+    const card = cards[currentIndex];
+    const hasOptions = checkHasOptions(card);
+
+    const optionsBtn = container.querySelector('[data-mode="options"]');
+    if (optionsBtn) {
+        if (!hasOptions) {
+            optionsBtn.disabled = true;
+            optionsBtn.style.opacity = '0.5';
+            optionsBtn.style.cursor = 'not-allowed';
+            optionsBtn.title = 'No options available';
+        } else {
+            optionsBtn.disabled = false;
+            optionsBtn.style.opacity = '1';
+            optionsBtn.style.cursor = 'pointer';
+            optionsBtn.title = 'Switch to options mode';
+        }
+    }
+}
+
+async function showCard(index) {
     if (index >= cards.length) {
         // Check if all cards are answered
         const hasUnanswered = cardStates.some((state, idx) => idx < originalCardsCount && state === null);
@@ -138,9 +277,87 @@ function showCard(index) {
         categoryBadge.style.display = 'none';
     }
 
-    // Show Translation as the "Question" (Front of card)
-    document.getElementById('card-front-text').textContent = formatOptionForDisplay(card.translation);
-    document.getElementById('card-transcription').textContent = wasAnswered && card.transcription ? card.transcription : '';
+    // Show Translation as the "Question" (Front of card) or play speech
+    // Only use speech mode if TTS is available
+    const hasTTS = !!(card.ttsAudio && card.ttsAudio.length > 0);
+
+    // Update mode controls based on availability
+    updateModeControls(hasTTS);
+
+    // Auto-select default mode for new (unanswered) cards
+    if (!wasAnswered) {
+        if (hasTTS) {
+            // Speech is available - use it as default
+            currentMode = 'speech';
+        } else {
+            // No TTS - default to text
+            currentMode = 'text';
+        }
+    }
+
+    // Determine effective mode based on currentMode (user's choice)
+    let effectiveMode = currentMode;
+
+    // If currentMode is 'options', check if options are available
+    if (currentMode === 'options') {
+        const hasOptions = checkHasOptions(card);
+
+        if (!hasOptions) {
+            // No options available, fallback to text
+            effectiveMode = 'text';
+            currentMode = 'text';
+        }
+    }
+
+    // If currentMode is 'speech', check if TTS is available
+    if (currentMode === 'speech' && !hasTTS) {
+        // No TTS available, fallback to text
+        effectiveMode = 'text';
+        currentMode = 'text';
+    }
+
+    // Update UI to reflect current mode
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === currentMode);
+    });
+
+    if (effectiveMode === 'speech' && !wasAnswered) {
+        // Speech mode - play audio and hide text
+        document.getElementById('card-front-text').innerHTML = `
+            <button id="flashcard-play-btn" class="mic-btn" style="margin-top:0; width:80px; height:80px; font-size:32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">
+                🔊
+            </button>
+            <div style="margin-top:12px; font-size:14px; color:#94a3b8;">Click to listen</div>
+        `;
+        document.getElementById('card-transcription').textContent = '';
+
+        const playBtn = document.getElementById('flashcard-play-btn');
+        playBtn.onclick = () => playCardSpeech(card, playBtn);
+
+        // Play existing TTS
+        playCardSpeech(card, playBtn);
+    } else if (effectiveMode === 'options' && !wasAnswered) {
+        // Options mode
+        document.getElementById('card-front-text').textContent = formatOptionForDisplay(card.translation);
+        document.getElementById('card-transcription').textContent = '';
+
+        // Render options
+        renderOptions(card);
+
+        // Hide input area, show options area
+        document.getElementById('input-area').classList.add('hidden');
+        document.getElementById('options-area').classList.remove('hidden');
+    } else {
+        // Text mode or already answered or no TTS available
+        document.getElementById('card-front-text').textContent = formatOptionForDisplay(card.translation);
+        document.getElementById('card-transcription').textContent = wasAnswered && card.transcription ? card.transcription : '';
+
+        // Ensure input area is visible if not options mode
+        if (effectiveMode !== 'options') {
+            document.getElementById('input-area').classList.remove('hidden');
+            document.getElementById('options-area').classList.add('hidden');
+        }
+    }
 
     // Reset/Restore Input
     const input = document.getElementById('answer-input');
@@ -184,7 +401,10 @@ function showCard(index) {
         input.value = '';
         input.disabled = false;
         input.className = 'manual-input';
-        input.focus();
+
+        if (effectiveMode !== 'options') {
+            input.focus();
+        }
 
         document.getElementById('feedback-area').classList.add('hidden');
         document.getElementById('correct-answer-display').classList.add('hidden');
@@ -196,6 +416,70 @@ function showCard(index) {
 
     // Reset/Restore Dots
     updateDots();
+}
+
+function renderOptions(card) {
+    const container = document.getElementById('options-area');
+    container.innerHTML = '';
+
+    // Determine language code for the word
+    const wordLangCode = getLanguageCode(card.word_language || 'English');
+
+    // Get distractors for the word's language
+    const distractorsKey = `distractors_${wordLangCode}`;
+    let distractors = card[distractorsKey] || [];
+
+    // Fallback: try other language keys if primary is empty
+    if (distractors.length === 0) {
+        // Try common language keys
+        const fallbackKeys = ['distractors_en', 'distractors_ru', 'distractors_uk', 'distractors'];
+        for (const key of fallbackKeys) {
+            if (card[key] && card[key].length > 0) {
+                distractors = card[key];
+                break;
+            }
+        }
+    }
+
+    if (distractors.length === 0) return;
+
+    // Combine correct answer with distractors and shuffle
+    const options = [...distractors, card.word].sort(() => Math.random() - 0.5);
+
+    options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = formatOptionForDisplay(option);
+
+        btn.addEventListener('click', () => handleOptionClick(btn, option, card.word));
+
+        container.appendChild(btn);
+    });
+}
+
+function handleOptionClick(btn, selectedOption, correctAnswer) {
+    if (isCardResolved) return;
+
+    const isCorrect = isCloseMatch(selectedOption, correctAnswer).match;
+    const container = document.getElementById('options-area');
+    const allButtons = container.querySelectorAll('.option-btn');
+
+    // Disable all buttons
+    allButtons.forEach(b => b.disabled = true);
+
+    if (isCorrect) {
+        btn.classList.add('correct');
+        resolveCard(true);
+    } else {
+        btn.classList.add('wrong');
+        // Highlight correct answer
+        allButtons.forEach(b => {
+            if (isCloseMatch(b.textContent, correctAnswer).match) {
+                b.classList.add('correct');
+            }
+        });
+        resolveCard(false);
+    }
 }
 
 function handleCheck() {
@@ -310,16 +594,16 @@ function updateDots() {
     });
 }
 
-function nextCard() {
+async function nextCard() {
     if (currentIndex < cards.length - 1) {
-        showCard(currentIndex + 1);
+        await showCard(currentIndex + 1);
     } else {
         // Last card, check if all answered
         const hasUnanswered = cardStates.some((state, idx) => idx < originalCardsCount && state === null);
         if (hasUnanswered) {
             const firstUnanswered = cardStates.findIndex((state, idx) => idx < originalCardsCount && state === null);
             if (firstUnanswered !== -1) {
-                showCard(firstUnanswered);
+                await showCard(firstUnanswered);
             }
         } else {
             showCompleteScreen();
@@ -345,9 +629,9 @@ function initializeProgressSidebar() {
         box.dataset.index = index;
 
         // Allow clicking to navigate (optional, but good for UX)
-        box.addEventListener('click', () => {
+        box.addEventListener('click', async () => {
             if (index !== currentIndex) {
-                showCard(index);
+                await showCard(index);
             }
         });
 
@@ -420,8 +704,146 @@ function showCompleteScreen() {
     }
 }
 
+// Play TTS for card
+// Does NOT generate TTS - it should already be present if available
+async function playCardSpeech(card, btnElement = null) {
+    try {
+        // Check if TTS audio exists
+        if (card.ttsAudio) {
+            // Play existing audio
+            const mimeType = card.ttsMimeType || 'audio/L16;codec=pcm;rate=24000';
+            playAudioFromBase64(card.ttsAudio, mimeType, btnElement);
+            return true;
+        } else {
+            // No TTS available - do not generate
+            console.log('[Flashcards] No TTS audio available for:', card.word);
+            return false;
+        }
+    } catch (error) {
+        console.error('[Flashcards] Error playing speech:', error);
+        return false;
+    }
+}
+
+// Convert raw PCM audio to WAV format by adding WAV headers
+function pcmToWav(pcmData, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
+    const dataLength = pcmData.length;
+    const buffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(buffer);
+
+    // WAV Header
+    // "RIFF" chunk descriptor
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + dataLength, true); // File size - 8
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+
+    // "fmt " sub-chunk
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+    view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
+    view.setUint16(22, numChannels, true); // NumChannels
+    view.setUint32(24, sampleRate, true); // SampleRate
+    view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true); // ByteRate
+    view.setUint16(32, numChannels * bitsPerSample / 8, true); // BlockAlign
+    view.setUint16(34, bitsPerSample, true); // BitsPerSample
+
+    // "data" sub-chunk
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, dataLength, true); // Subchunk2Size
+
+    // Copy PCM data
+    const pcmView = new Uint8Array(buffer, 44);
+    pcmView.set(pcmData);
+
+    return new Uint8Array(buffer);
+}
+
+let currentAudio = null;
+let currentAudioUrl = null;
+
+function playAudioFromBase64(base64Audio, mimeType = 'audio/L16;codec=pcm;rate=24000', btnElement = null) {
+    try {
+        // If same audio is playing, pause it
+        if (currentAudio && !currentAudio.paused && currentAudio.dataset.src === base64Audio.substring(0, 50)) {
+            currentAudio.pause();
+            if (btnElement) btnElement.textContent = '🔊';
+            return;
+        }
+
+        // Stop previous audio if any
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = null;
+            }
+        }
+
+        // Convert base64 to blob
+        const byteCharacters = atob(base64Audio);
+        const byteNumbers = new Array(byteCharacters.length);
+
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+
+        const pcmData = new Uint8Array(byteNumbers);
+
+        // Convert PCM to WAV if the MIME type indicates PCM format
+        let audioData;
+        let audioMimeType;
+
+        if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+            console.log('[Flashcards] Converting PCM to WAV format');
+            audioData = pcmToWav(pcmData, 24000, 1, 16);
+            audioMimeType = 'audio/wav';
+        } else {
+            audioData = pcmData;
+            audioMimeType = mimeType;
+        }
+
+        const blob = new Blob([audioData], { type: audioMimeType });
+        const audioUrl = URL.createObjectURL(blob);
+        currentAudioUrl = audioUrl;
+
+        const audio = new Audio(audioUrl);
+        audio.dataset.src = base64Audio.substring(0, 50); // Store signature
+        currentAudio = audio;
+
+        if (btnElement) btnElement.textContent = '⏸️';
+
+        // Clean up URL after playing
+        audio.addEventListener('ended', () => {
+            if (btnElement) btnElement.textContent = '🔊';
+            URL.revokeObjectURL(audioUrl);
+            if (currentAudio === audio) {
+                currentAudio = null;
+                currentAudioUrl = null;
+            }
+        });
+
+        audio.addEventListener('pause', () => {
+            if (btnElement) btnElement.textContent = '🔊';
+        });
+
+        audio.addEventListener('error', (e) => {
+            console.error('[Flashcards] Audio playback error:', e, audio.error);
+            if (btnElement) btnElement.textContent = '🔊';
+        });
+
+        audio.play().catch(err => {
+            console.error('[Flashcards] Play failed:', err);
+            if (btnElement) btnElement.textContent = '🔊';
+        });
+    } catch (error) {
+        console.error('[Flashcards] Error playing audio:', error);
+        if (btnElement) btnElement.textContent = '🔊';
+    }
+}
+
 // Start mistake review
-function startMistakeReview() {
+async function startMistakeReview() {
     isReviewingMistakes = true;
 
     // Add mistake cards to the end
@@ -442,5 +864,5 @@ function startMistakeReview() {
     // Show first mistake card
     currentIndex = mistakeStartIndex;
     document.getElementById('current-index').textContent = 1;
-    showCard(mistakeStartIndex);
+    await showCard(mistakeStartIndex);
 }

@@ -396,7 +396,11 @@ function showCard(index) {
     // Update front side (original language)
     const wordLangCode = card.word_language_code || 'en';
     const meaningKey = `meaning_${wordLangCode}`;
-    const defFront = card.definitions[0]?.[meaningKey] || card.definitions[0]?.meaning_en || 'No definition';
+    let defFront = card.definitions[0]?.[meaningKey] || card.definitions[0]?.meaning_en || 'No definition';
+
+    // Mask the word in the definition
+    defFront = maskWord(defFront, card.word);
+
     document.getElementById('card-hint-en').textContent = defFront;
     document.getElementById('card-transcription').textContent = card.transcription || '';
 
@@ -410,7 +414,22 @@ function showCard(index) {
     // Update back side (target language)
     const targetLangCode = targetLanguage.toLowerCase();
     const targetMeaningKey = `meaning_${targetLangCode}`;
-    const defBack = card.definitions[0]?.[targetMeaningKey] || card.definitions[0]?.meaning_ru || 'Нет определения';
+    let defBack = card.definitions[0]?.[targetMeaningKey] || card.definitions[0]?.meaning_ru || 'Нет определения';
+
+    // Mask the word in the definition (back side usually shows target language definition for the source word, or vice versa depending on design)
+    // But here we want to mask the ANSWER word. 
+    // On the back, we are guessing the Russian word (card.translation). 
+    // However, the definition might contain the original word or the translated word.
+    // Let's mask both to be safe.
+    defBack = maskWord(defBack, card.word);
+    if (typeof card.translation === 'string') {
+        defBack = maskWord(defBack, card.translation);
+    } else if (typeof card.translation === 'object') {
+        Object.values(card.translation).forEach(val => {
+            defBack = maskWord(defBack, val);
+        });
+    }
+
     document.getElementById('card-hint-ru').textContent = defBack;
     document.getElementById('card-transcription-ru').textContent = card.transcription || '';
 
@@ -1017,3 +1036,12 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+function maskWord(text, wordToMask) {
+    if (!text || !wordToMask) return text;
+    // Escape special regex chars
+    const escapedWord = wordToMask.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Match whole word if possible, but for now simple replacement is safer for partial matches in agglutinative languages
+    // Using word boundary \b might be too strict for some languages, but let's try case insensitive global replace
+    const regex = new RegExp(escapedWord, 'gi');
+    return text.replace(regex, '____');
+}

@@ -317,6 +317,12 @@
     "def_cards_unanswered_warning": {
         "message": "У вас есть карточки без ответов! Перенаправление через"
     },
+    "mode_text": {
+        "message": "Текст"
+    },
+    "mode_speech": {
+        "message": "Озвучка"
+    },
     "mode_options": {
         "message": "Варианты"
     },
@@ -373,5 +379,11 @@
     },
     "context_cards_close": {
         "message": "Закрыть"
+    },
+    "popup_add_word": {
+        "message": "Добавить новое слово"
+    },
+    "popup_add_btn": {
+        "message": "Добавить в словарь"
     }
 }

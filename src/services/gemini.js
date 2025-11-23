@@ -87,21 +87,28 @@ export class GeminiService {
     }
     async fetchModels(apiKey) {
         const now = Date.now();
-        if (this.modelsCache && (now - this.cacheTimestamp < this.CACHE_DURATION)) {
+        if (this.modelsCache && this.modelsCache.length > 0 && (now - this.cacheTimestamp < this.CACHE_DURATION)) {
             console.log('Returning cached models');
             return this.modelsCache;
         }
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        console.log('[GeminiService] Fetching models from:', url);
+
         const response = await fetch(url);
         const data = await response.json();
+        console.log('[GeminiService] Models response:', data);
 
-        if (data.error) throw new Error(data.error.message);
+        if (data.error) {
+            console.error('[GeminiService] Error fetching models:', data.error);
+            throw new Error(data.error.message);
+        }
 
         // Filter for generateContent models and exclude unwanted types
         const models = data.models
             .filter(m => {
-                if (!m.supportedGenerationMethods || !m.supportedGenerationMethods.includes('generateContent')) {
+                // If supportedGenerationMethods is present, it MUST include generateContent
+                if (m.supportedGenerationMethods && !m.supportedGenerationMethods.includes('generateContent')) {
                     return false;
                 }
                 const name = m.name.toLowerCase();
@@ -109,8 +116,7 @@ export class GeminiService {
                     !name.includes('imagen') &&
                     !name.includes('tts') &&
                     !name.includes('computer-use') &&
-                    !name.includes('embedding') &&
-                    !name.includes('nano');
+                    !name.includes('embedding');
             })
             .map(m => ({
                 name: m.name.replace('models/', ''),

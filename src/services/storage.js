@@ -1,11 +1,13 @@
 export class StorageService {
     async getApiKey() {
-        const result = await chrome.storage.local.get('apiKey');
-        return result.apiKey;
+        const result = await chrome.storage.local.get(['GEMINI_API_KEY', 'apiKey']);
+        return result.GEMINI_API_KEY || result.apiKey;
     }
 
     async setApiKey(key) {
-        await chrome.storage.local.set({ apiKey: key });
+        // Save as GEMINI_API_KEY, and remove legacy apiKey to avoid confusion
+        await chrome.storage.local.set({ GEMINI_API_KEY: key });
+        await chrome.storage.local.remove('apiKey');
     }
 
     async getLearningList() {
@@ -18,11 +20,11 @@ export class StorageService {
     }
 
     async saveWord(wordData) {
-        const result = await chrome.storage.local.get('learningList');
+        const result = await chrome.storage.local.get(['learningList', 'wordHistory']);
         const list = result.learningList || [];
 
-        // Avoid duplicates
-        if (!list.find(w => w.word === wordData.word)) {
+        // Avoid duplicates (case-insensitive)
+        if (!list.find(w => w.word.toLowerCase() === wordData.word.toLowerCase())) {
             list.push({
                 ...wordData,
                 translation: typeof wordData.translation === 'object' ? JSON.stringify(wordData.translation) : String(wordData.translation || ''),
@@ -33,10 +35,54 @@ export class StorageService {
                 level: 0, // SRS level
                 correctCount: 0,
                 wrongCount: 0,
-                category: wordData.category || 'default' // Add category support
+                category: wordData.category || 'default', // Add category support
+                ttsAudio: wordData.ttsAudio || null, // TTS audio base64
+                ttsLanguage: wordData.ttsLanguage || null, // Language code used for TTS
+                ttsDifficulty: wordData.ttsDifficulty || null, // Difficulty level used
+                ttsMimeType: wordData.ttsMimeType || null // Audio MIME type
             });
-            await chrome.storage.local.set({ learningList: list });
+
+            // Remove from history if it exists there (case-insensitive)
+            let history = result.wordHistory || [];
+            history = history.filter(w => w.word.toLowerCase() !== wordData.word.toLowerCase());
+
+            await chrome.storage.local.set({ learningList: list, wordHistory: history });
         }
+    }
+
+    // TTS Audio Management
+    async updateWordTTS(wordId, ttsAudio, language, difficulty, mimeType) {
+        const result = await chrome.storage.local.get('learningList');
+        let list = result.learningList || [];
+
+        list = list.map(w => {
+            if (w.id === wordId) {
+                w.ttsAudio = ttsAudio;
+                w.ttsLanguage = language;
+                w.ttsDifficulty = difficulty;
+                w.ttsMimeType = mimeType;
+            }
+            return w;
+        });
+
+        await chrome.storage.local.set({ learningList: list });
+    }
+
+    async updateHistoryTTS(word, ttsAudio, language, difficulty, mimeType) {
+        const result = await chrome.storage.local.get('wordHistory');
+        let history = result.wordHistory || [];
+
+        history = history.map(w => {
+            if (w.word === word) {
+                w.ttsAudio = ttsAudio;
+                w.ttsLanguage = language;
+                w.ttsDifficulty = difficulty;
+                w.ttsMimeType = mimeType;
+            }
+            return w;
+        });
+
+        await chrome.storage.local.set({ wordHistory: history });
     }
 
     // Category Management
@@ -239,5 +285,26 @@ export class StorageService {
             console.error('Import error:', e);
             return { success: false, error: e.message };
         }
+    }
+
+    async deleteFromHistory(word) {
+        const result = await chrome.storage.local.get('wordHistory');
+        let history = result.wordHistory || [];
+        history = history.filter(w => w.word !== word);
+        await chrome.storage.local.set({ wordHistory: history });
+    }
+
+    async updateWordCategory(wordId, newCategory) {
+        const result = await chrome.storage.local.get('learningList');
+        let list = result.learningList || [];
+
+        list = list.map(w => {
+            if (w.id === wordId) {
+                w.category = newCategory;
+            }
+            return w;
+        });
+
+        await chrome.storage.local.set({ learningList: list });
     }
 }

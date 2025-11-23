@@ -1,11 +1,13 @@
 import { GeminiService } from '../services/gemini.js';
 import { StorageService } from '../services/storage.js';
 import { I18nService } from '../services/i18n.js';
+import { TTSService } from '../services/tts.js';
 
 // Initialize services
 const gemini = new GeminiService();
 const storage = new StorageService();
 const i18n = new I18nService();
+const tts = new TTSService();
 
 chrome.runtime.onInstalled.addListener(() => {
     console.log('AI Subtitles Extension Installed');
@@ -72,6 +74,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message.type === 'GENERATE_DEFINITION_CARDS') {
         handleGenerateDefinitionCards().then(sendResponse);
+        return true;
+    }
+    // TTS handlers
+    if (message.type === 'GENERATE_TTS') {
+        handleGenerateTTS(message.wordId, message.word).then(sendResponse);
+        return true;
+    }
+    if (message.type === 'GENERATE_HISTORY_TTS') {
+        handleGenerateHistoryTTS(message.word).then(sendResponse);
+        return true;
+    }
+    if (message.type === 'GENERATE_TTS_FOR_WORD_DATA') {
+        handleGenerateTTSForWordData(message.wordData).then(sendResponse);
         return true;
     }
 });
@@ -178,16 +193,25 @@ async function handleGenerateFlashcards() {
         // Generate simple flashcards (word + translation + distractors)
         let flashcards = await gemini.generateSimpleFlashcards(limitedWords, apiKey, model, language);
 
-        // Map categories back to flashcards
-
+        // Map categories AND TTS data back to flashcards
         flashcards = flashcards.map(card => {
             const originalWord = limitedWords.find(w => w.word.toLowerCase().trim() === card.word.toLowerCase().trim());
 
-
+            // Copy TTS data from original word if available
+            if (originalWord) {
+                return {
+                    ...card,
+                    category: originalWord.category || 'default',
+                    ttsAudio: originalWord.ttsAudio || null,
+                    ttsLanguage: originalWord.ttsLanguage || null,
+                    ttsDifficulty: originalWord.ttsDifficulty || null,
+                    ttsMimeType: originalWord.ttsMimeType || null
+                };
+            }
 
             return {
                 ...card,
-                category: originalWord ? (originalWord.category || 'default') : 'default'
+                category: 'default'
             };
         });
 
@@ -273,15 +297,25 @@ async function handleGenerateContextCards() {
 
 
 
-        // Map categories back to flashcards
+        // Map categories AND TTS data back to flashcards
         flashcards = flashcards.map(card => {
             const originalWord = limitedWords.find(w => w.word.toLowerCase().trim() === card.word.toLowerCase().trim());
 
-
+            // Copy TTS data from original word if available
+            if (originalWord) {
+                return {
+                    ...card,
+                    category: originalWord.category || 'default',
+                    ttsAudio: originalWord.ttsAudio || null,
+                    ttsLanguage: originalWord.ttsLanguage || null,
+                    ttsDifficulty: originalWord.ttsDifficulty || null,
+                    ttsMimeType: originalWord.ttsMimeType || null
+                };
+            }
 
             return {
                 ...card,
-                category: originalWord ? (originalWord.category || 'default') : 'default'
+                category: 'default'
             };
         });
 
@@ -380,14 +414,25 @@ async function handleGenerateDefinitionCards() {
         const language = result.appLanguage || getDefaultLanguage();
         let cards = await gemini.generateDefinitionCards(limitedWords, apiKey, model, language);
 
-        // Map categories back to cards
+        // Map categories AND TTS data back to cards
         cards = cards.map(card => {
             const originalWord = limitedWords.find(w => w.word.toLowerCase().trim() === card.word.toLowerCase().trim());
 
+            // Copy TTS data from original word if available
+            if (originalWord) {
+                return {
+                    ...card,
+                    category: originalWord.category || 'default',
+                    ttsAudio: originalWord.ttsAudio || null,
+                    ttsLanguage: originalWord.ttsLanguage || null,
+                    ttsDifficulty: originalWord.ttsDifficulty || null,
+                    ttsMimeType: originalWord.ttsMimeType || null
+                };
+            }
 
             return {
                 ...card,
-                category: originalWord ? (originalWord.category || 'default') : 'default'
+                category: 'default'
             };
         });
 
@@ -408,5 +453,159 @@ function shuffleArray(array) {
         [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+}
+
+// TTS Handler Functions
+async function handleGenerateTTS(wordId, word) {
+    console.log('[Background] handleGenerateTTS called:', { wordId, word });
+    try {
+        const settings = await chrome.storage.local.get(['GEMINI_API_KEY', 'ttsEnabled', 'ttsDifficulty']);
+        console.log('[Background] TTS Settings:', { ttsEnabled: settings.ttsEnabled, ttsDifficulty: settings.ttsDifficulty, hasApiKey: !!settings.GEMINI_API_KEY });
+
+        // Default to true if not set
+        const ttsEnabled = settings.ttsEnabled !== false;
+
+        if (!ttsEnabled) {
+            console.warn('[Background] TTS is disabled in settings');
+            return { success: false, error: 'TTS is disabled in settings' };
+        }
+
+        const apiKey = settings.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error('[Background] API Key not set');
+            return { success: false, error: 'API Key not set' };
+        }
+
+        // Get word data to find language
+        const learningList = await storage.getLearningList();
+        const wordData = learningList.find(w => w.id === wordId);
+
+        if (!wordData) {
+            console.error('[Background] Word not found:', wordId);
+            return { success: false, error: 'Word not found' };
+        }
+
+        console.log('[Background] Word data:', { word: wordData.word, language: wordData.word_language });
+
+        const languageCode = getLanguageCode(wordData.word_language);
+        const difficulty = settings.ttsDifficulty || 'B2';
+        const voiceModel = settings.ttsVoice || 'Zephyr';
+
+        console.log('[Background] Calling TTS service with:', { word, languageCode, difficulty, voiceModel });
+
+        // Generate TTS
+        const ttsResult = await tts.generateSpeech(word, languageCode, apiKey, difficulty, voiceModel);
+
+        console.log('[Background] TTS generated, saving to storage');
+
+        // Save to storage
+        await storage.updateWordTTS(wordId, ttsResult.audio, languageCode, difficulty, ttsResult.mimeType);
+
+        console.log('[Background] TTS saved successfully');
+        return { success: true };
+    } catch (error) {
+        console.error('[Background] TTS Generation error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+async function handleGenerateHistoryTTS(word) {
+    try {
+        const settings = await chrome.storage.local.get(['GEMINI_API_KEY', 'ttsEnabled', 'ttsDifficulty']);
+
+        if (!settings.ttsEnabled) {
+            return { success: false, error: 'TTS is disabled in settings' };
+        }
+
+        const apiKey = settings.GEMINI_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: 'API Key not set' };
+        }
+
+        // Get word data from history
+        const result = await chrome.storage.local.get('wordHistory');
+        const history = result.wordHistory || [];
+        const wordData = history.find(w => w.word === word);
+
+        if (!wordData) {
+            return { success: false, error: 'Word not found in history' };
+        }
+
+        const languageCode = getLanguageCode(wordData.word_language);
+        const difficulty = settings.ttsDifficulty || 'B2';
+        const voiceModel = settings.ttsVoice || 'Zephyr';
+
+        // Generate TTS
+        const ttsResult = await tts.generateSpeech(word, languageCode, apiKey, difficulty, voiceModel);
+
+        // Save to storage
+        await storage.updateHistoryTTS(word, ttsResult.audio, languageCode, difficulty, ttsResult.mimeType);
+
+        return { success: true };
+    } catch (error) {
+        console.error('[TTS] History generation error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Generate TTS for word data (used when adding new words)
+async function handleGenerateTTSForWordData(wordData) {
+    console.log('[Background] handleGenerateTTSForWordData called:', wordData);
+    try {
+        const settings = await chrome.storage.local.get(['GEMINI_API_KEY', 'ttsEnabled', 'ttsAutoGenerate', 'ttsDifficulty']);
+        console.log('[Background] Auto-gen settings:', { ttsEnabled: settings.ttsEnabled, ttsAutoGenerate: settings.ttsAutoGenerate, ttsDifficulty: settings.ttsDifficulty });
+
+        // Default to true if not set (undefined means not configured yet, so enable by default)
+        const ttsEnabled = settings.ttsEnabled !== false;
+        const ttsAutoGenerate = settings.ttsAutoGenerate !== false;
+
+        console.log('[Background] Effective settings:', { ttsEnabled, ttsAutoGenerate });
+
+        if (!ttsEnabled || !ttsAutoGenerate) {
+            console.log('[Background] TTS auto-generation is disabled');
+            return { success: false, audio: null };
+        }
+
+        const apiKey = settings.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error('[Background] API Key not set for auto-gen');
+            return { success: false, audio: null };
+        }
+
+        const languageCode = getLanguageCode(wordData.word_language);
+        const difficulty = settings.ttsDifficulty || 'B2';
+        const voiceModel = settings.ttsVoice || 'Zephyr';
+
+        console.log('[Background] Generating TTS for:', { word: wordData.word, languageCode, difficulty, voiceModel });
+
+        // Generate TTS
+        const ttsResult = await tts.generateSpeech(wordData.word, languageCode, apiKey, difficulty, voiceModel);
+
+        console.log('[Background] TTS auto-generated successfully');
+        return { success: true, audio: ttsResult.audio, mimeType: ttsResult.mimeType, language: languageCode, difficulty: difficulty };
+    } catch (error) {
+        console.error('[Background] TTS Auto-generation error:', error);
+        return { success: false, audio: null };
+    }
+}
+
+// Helper function to convert language name to code
+function getLanguageCode(languageName) {
+    const languageMap = {
+        'English': 'en',
+        'Russian': 'ru',
+        'Ukrainian': 'uk',
+        'Spanish': 'es',
+        'French': 'fr',
+        'German': 'de',
+        'Italian': 'it',
+        'Portuguese': 'pt',
+        'Chinese': 'zh',
+        'Japanese': 'ja',
+        'Korean': 'ko',
+        'Arabic': 'ar'
+    };
+
+    return languageMap[languageName] || 'en';
 }
 

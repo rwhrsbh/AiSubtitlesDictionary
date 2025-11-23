@@ -33,6 +33,13 @@
             <div class="card">
                 <div class="card-content" style="position: relative;">
                     <div class="category-badge" id="card-category" style="display:none;"></div>
+
+                    <!-- Mode Controls -->
+                    <div id="mode-controls-container" class="mode-controls"
+                        style="display: flex; justify-content: center; gap: 10px; margin-bottom: 16px;">
+                        <!-- Buttons injected by JS -->
+                    </div>
+
                     <div class="word-display" id="card-front-text">Loading...</div>
                     <div class="transcription" id="card-transcription"></div>
 
@@ -43,6 +50,10 @@
                             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                         </div>
                         <button id="check-btn" class="action-btn" data-i18n="btn_check">Check</button>
+                    </div>
+
+                    <div id="options-area" class="options-grid hidden">
+                        <!-- Options injected by JS -->
                     </div>
 
                     <div id="feedback-area" class="feedback-area hidden">

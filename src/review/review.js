@@ -144,6 +144,9 @@ function handleManualSubmit() {
     } else if (state.mode === 'reverse_translation') {
         correctAnswer = wordData.word;
         matchResult = isCloseMatch(value, correctAnswer);
+    } else if (state.mode === 'speech') {
+        correctAnswer = wordData.word;
+        matchResult = isCloseMatch(value, correctAnswer);
     } else {
         correctAnswer = wordData.transcription || '';
         matchResult = isCloseMatch(value, correctAnswer);
@@ -238,7 +241,7 @@ async function showNextCard() {
     const wordData = currentReviewWords[currentWordIndex];
 
     // Get quiz settings
-    const settings = await chrome.storage.local.get(['quizTranslation', 'quizTranscription']);
+    const settings = await chrome.storage.local.get(['quizTranslation', 'quizTranscription', 'ttsEnabled']);
     const enabledModes = [];
 
     if (settings.quizTranslation !== false) {
@@ -251,12 +254,38 @@ async function showNextCard() {
     }
     if (settings.quizTranscription !== false) enabledModes.push('transcription');
 
+    // Add speech mode randomly if TTS is enabled and audio exists or can be generated
+    if (settings.ttsEnabled !== false && Math.random() < 0.3) { // 30% chance
+        enabledModes.push('speech');
+    }
+
     // Default to both if none saved
     if (enabledModes.length === 0) {
         enabledModes.push('translation', 'transcription');
     }
 
-    const mode = enabledModes[Math.floor(Math.random() * enabledModes.length)];
+    let mode = enabledModes[Math.floor(Math.random() * enabledModes.length)];
+
+    // If speech mode is selected, we need to verify TTS works
+    if (mode === 'speech') {
+        // Try to play speech. If it fails, it will return false.
+        // We pass a flag to NOT update the UI yet, just check/generate audio.
+        const speechSuccess = await playWordSpeech(wordData, true);
+
+        if (!speechSuccess) {
+            console.warn(`[Review] TTS unavailable for "${wordData.word}", falling back to another mode.`);
+            // Remove 'speech' from enabled modes and try again
+            const nonSpeechModes = enabledModes.filter(m => m !== 'speech');
+
+            // If no other modes available (unlikely), default to translation
+            const fallbackMode = nonSpeechModes.length > 0
+                ? nonSpeechModes[Math.floor(Math.random() * nonSpeechModes.length)]
+                : 'translation';
+
+            showQuiz(wordData, fallbackMode);
+            return;
+        }
+    }
 
     showQuiz(wordData, mode);
 }
@@ -406,12 +435,18 @@ function showQuiz(wordData, mode) {
     wordStates[currentWordIndex] = { mode: mode, answered: null };
 
     // For transcription mode, force options mode and hide manual toggle
+    // For speech mode, force manual mode and hide toggle
     const modeControlsContainer = document.querySelector('.mode-controls');
     if (mode === 'transcription') {
         // Force options mode for transcription
         currentMode = 'options';
         if (modeControlsContainer) modeControlsContainer.style.display = 'none';
         setMode('options');
+    } else if (mode === 'speech') {
+        // Force manual mode for speech
+        currentMode = 'manual';
+        if (modeControlsContainer) modeControlsContainer.style.display = 'none';
+        setMode('manual');
     } else {
         // Show mode controls for translation/reverse
         if (modeControlsContainer) modeControlsContainer.style.display = '';
@@ -421,7 +456,29 @@ function showQuiz(wordData, mode) {
     let correctAnswer;
     let options = [];
 
-    if (mode === 'translation') {
+    if (mode === 'speech') {
+        // SPEECH MODE: Listen to word -> Type word
+        // SPEECH MODE: Listen to word -> Type word
+        qWord.innerHTML = `
+            <button id="review-play-btn" class="mic-btn" style="margin-top:0; margin-left: auto; margin-right: auto; width:80px; height:80px; font-size:32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">
+                🔊
+            </button>
+            <div style="margin-top:12px; font-size:14px; color:#94a3b8;">Click to listen</div>
+        `;
+
+        const playBtn = document.getElementById('review-play-btn');
+        playBtn.onclick = () => playWordSpeech(wordData, false, playBtn);
+        console.log('[Quiz] Speech:', wordData.word);
+
+        // Play audio
+        // Play audio (we already verified it works in showNextCard, but we play it again for the user)
+        // Play audio (we already verified it works in showNextCard, but we play it again for the user)
+        playWordSpeech(wordData, false, playBtn);
+
+        correctAnswer = wordData.word;
+        // No options for speech mode (manual input only)
+        options = [];
+    } else if (mode === 'translation') {
         // TRANSLATION QUIZ: Word -> Translation
         qWord.textContent = wordData.word;
         console.log('[Quiz] Translation:', wordData.word);
@@ -628,4 +685,145 @@ function updateProgressIndicators() {
             box.classList.add('active');
         }
     });
+}
+
+// Play word speech for TTS mode
+// Does NOT generate TTS - it should already be present if available  
+// Returns true if audio exists, false if not available
+async function playWordSpeech(wordData, checkOnly = false, btnElement = null) {
+    try {
+        // Check if TTS audio exists
+        if (wordData.ttsAudio) {
+            // Play existing audio if not just checking
+            if (!checkOnly) {
+                const mimeType = wordData.ttsMimeType || 'audio/L16;codec=pcm;rate=24000';
+                playAudioFromBase64(wordData.ttsAudio, mimeType, btnElement);
+            }
+            return true;
+        } else {
+            // No TTS available - do not generate
+            console.log('[Review] No TTS audio available for:', wordData.word);
+            return false;
+        }
+    } catch (error) {
+        console.error('[Review] Error playing speech:', error);
+        return false;
+    }
+}
+
+// Convert raw PCM audio to WAV format by adding WAV headers
+function pcmToWav(pcmData, sampleRate = 24000, numChannels = 1, bitsPerSample = 16) {
+    const dataLength = pcmData.length;
+    const buffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(buffer);
+
+    // WAV Header
+    // "RIFF" chunk descriptor
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    view.setUint32(4, 36 + dataLength, true); // File size - 8
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+
+    // "fmt " sub-chunk
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+    view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
+    view.setUint16(22, numChannels, true); // NumChannels
+    view.setUint32(24, sampleRate, true); // SampleRate
+    view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true); // ByteRate
+    view.setUint16(32, numChannels * bitsPerSample / 8, true); // BlockAlign
+    view.setUint16(34, bitsPerSample, true); // BitsPerSample
+
+    // "data" sub-chunk
+    view.setUint32(36, 0x64617461, false); // "data"
+    view.setUint32(40, dataLength, true); // Subchunk2Size
+
+    // Copy PCM data
+    const pcmView = new Uint8Array(buffer, 44);
+    pcmView.set(pcmData);
+
+    return new Uint8Array(buffer);
+}
+
+let currentAudio = null;
+let currentAudioUrl = null;
+
+function playAudioFromBase64(base64Audio, mimeType = 'audio/L16;codec=pcm;rate=24000', btnElement = null) {
+    try {
+        // If same audio is playing, pause it
+        if (currentAudio && !currentAudio.paused && currentAudio.dataset.src === base64Audio.substring(0, 50)) {
+            currentAudio.pause();
+            if (btnElement) btnElement.textContent = '🔊';
+            return;
+        }
+
+        // Stop previous audio if any
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = null;
+            }
+        }
+
+        // Convert base64 to blob
+        const byteCharacters = atob(base64Audio);
+        const byteNumbers = new Array(byteCharacters.length);
+
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+
+        const pcmData = new Uint8Array(byteNumbers);
+
+        // Convert PCM to WAV if the MIME type indicates PCM format
+        let audioData;
+        let audioMimeType;
+
+        if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+            console.log('[Review] Converting PCM to WAV format');
+            audioData = pcmToWav(pcmData, 24000, 1, 16);
+            audioMimeType = 'audio/wav';
+        } else {
+            audioData = pcmData;
+            audioMimeType = mimeType;
+        }
+
+        const blob = new Blob([audioData], { type: audioMimeType });
+        const audioUrl = URL.createObjectURL(blob);
+        currentAudioUrl = audioUrl;
+
+        const audio = new Audio(audioUrl);
+        audio.dataset.src = base64Audio.substring(0, 50); // Store signature
+        currentAudio = audio;
+
+        if (btnElement) btnElement.textContent = '⏸️';
+
+        // Clean up URL after playing
+        audio.addEventListener('ended', () => {
+            if (btnElement) btnElement.textContent = '🔊';
+            URL.revokeObjectURL(audioUrl);
+            if (currentAudio === audio) {
+                currentAudio = null;
+                currentAudioUrl = null;
+            }
+        });
+
+        audio.addEventListener('pause', () => {
+            if (btnElement) btnElement.textContent = '🔊';
+        });
+
+        audio.addEventListener('error', (e) => {
+            console.error('[Review] Audio playback error:', e, audio.error);
+            if (btnElement) btnElement.textContent = '🔊';
+        });
+
+        audio.play().catch(err => {
+            console.error('[Review] Play failed:', err);
+            if (btnElement) btnElement.textContent = '🔊';
+        });
+    } catch (error) {
+        console.error('[Review] Error playing audio:', error);
+        if (btnElement) btnElement.textContent = '🔊';
+    }
 }
