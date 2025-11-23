@@ -140,9 +140,6 @@
     "flashcards_title": {
         "message": "Флеш-карточки"
     },
-    "context_cards_title": {
-        "message": "Карточки Контекста"
-    },
     "flashcards_loading": {
         "message": "Загрузка карточек..."
     },
@@ -358,5 +355,23 @@
     },
     "card_plural": {
         "message": "карточки"
+    },
+    "context_cards_title": {
+        "message": "Контекстные карточки"
+    },
+    "context_cards_loading": {
+        "message": "Загрузка карточек..."
+    },
+    "context_cards_reviewed_all": {
+        "message": "Вы завершили все карточки!"
+    },
+    "context_cards_complete": {
+        "message": "Отличная работа!"
+    },
+    "context_cards_start_over": {
+        "message": "Начать заново"
+    },
+    "context_cards_close": {
+        "message": "Закрыть"
     }
 }

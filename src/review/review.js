@@ -1,6 +1,31 @@
 import { StorageService } from '../services/storage.js';
 import { I18nService } from '../services/i18n.js';
-import { isCloseMatch } from '../services/utils.js';
+import { isCloseMatch, formatOptionForDisplay } from '../services/utils.js';
+
+// Helper to get translation string
+function getTranslation(translation) {
+    if (!translation) return '';
+    if (typeof translation === 'string') {
+        try {
+            // Try parsing if it looks like JSON
+            if (translation.trim().startsWith('{')) {
+                translation = JSON.parse(translation);
+            } else {
+                return translation;
+            }
+        } catch (e) {
+            return translation;
+        }
+    }
+
+    if (typeof translation === 'object') {
+        const lang = i18n.language || 'ru';
+        if (lang === 'en') return translation.english || translation.English || Object.values(translation)[0] || '';
+        if (lang === 'uk') return translation.ukrainian || translation.Ukrainian || translation.russian || Object.values(translation)[0] || '';
+        return translation.russian || translation.Russian || Object.values(translation)[0] || '';
+    }
+    return String(translation);
+}
 
 const storage = new StorageService();
 const i18n = new I18nService();
@@ -107,23 +132,21 @@ function handleManualSubmit() {
     if (!value || isAnswered) return;
 
     const wordData = currentReviewWords[currentWordIndex];
+    const state = wordStates[currentWordIndex];
 
     // Get the correct answer based on current mode
-    const correctTranslation = wordData.translation;
-    const correctTranscription = wordData.transcription || '';
-
-    // Check which quiz mode we're in
-    const settings = wordStates[currentWordIndex]?.mode || 'translation';
-
-    let matchResult;
     let correctAnswer;
+    let matchResult;
 
-    if (settings === 'translation') {
-        correctAnswer = correctTranslation;
-        matchResult = isCloseMatch(value, correctTranslation);
+    if (state.mode === 'translation') {
+        correctAnswer = getTranslation(wordData.translation);
+        matchResult = isCloseMatch(value, correctAnswer);
+    } else if (state.mode === 'reverse_translation') {
+        correctAnswer = wordData.word;
+        matchResult = isCloseMatch(value, correctAnswer);
     } else {
-        correctAnswer = correctTranscription;
-        matchResult = isCloseMatch(value, correctTranscription);
+        correctAnswer = wordData.transcription || '';
+        matchResult = isCloseMatch(value, correctAnswer);
     }
 
     const isCorrect = matchResult.match;
@@ -148,7 +171,8 @@ function handleManualSubmit() {
     const optionBtns = optionsContainer.querySelectorAll('.option-btn');
     optionBtns.forEach(btn => {
         btn.disabled = true;
-        if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+        // Check dataset instead of text content
+        if (btn.dataset.isCorrect === 'true') {
             btn.classList.add('correct');
         }
     });
@@ -177,13 +201,6 @@ async function loadReviewSession() {
         // Apply limit to due words
         currentReviewWords = dueWords.slice(0, tasksLimit);
     }
-    // Sanitize words to prevent [object Object] issues
-    currentReviewWords = currentReviewWords.map(w => ({
-        ...w,
-        word: typeof w.word === 'object' ? JSON.stringify(w.word) : String(w.word || ''),
-        translation: typeof w.translation === 'object' ? JSON.stringify(w.translation) : String(w.translation || ''),
-        transcription: typeof w.transcription === 'object' ? JSON.stringify(w.transcription) : String(w.transcription || '')
-    }));
 
     const wordsToReviewText = i18n.getMessage('words_to_review');
     document.getElementById('words-count').textContent = `${currentReviewWords.length} ${wordsToReviewText}`;
@@ -223,7 +240,15 @@ async function showNextCard() {
     // Get quiz settings
     const settings = await chrome.storage.local.get(['quizTranslation', 'quizTranscription']);
     const enabledModes = [];
-    if (settings.quizTranslation !== false) enabledModes.push('translation');
+
+    if (settings.quizTranslation !== false) {
+        enabledModes.push('translation');
+        // Add reverse translation if we have original distractors or just random chance
+        // Only enable if we have distractors_original or at least some distractors to use
+        if (wordData.distractors_original || (wordData.distractors && wordData.distractors.length > 0)) {
+            enabledModes.push('reverse_translation');
+        }
+    }
     if (settings.quizTranscription !== false) enabledModes.push('transcription');
 
     // Default to both if none saved
@@ -285,6 +310,7 @@ function startMistakeReview() {
     const container = document.getElementById('quiz-container');
     container.innerHTML = `
         <div class="card">
+            <div class="category-badge" id="q-category"></div>
             <div class="word-display" id="q-word">Loading...</div>
 
             <div class="mode-controls">
@@ -340,10 +366,17 @@ function initializeMistakeProgressIndicators() {
 }
 
 function showQuiz(wordData, mode) {
-    document.getElementById('q-word').textContent = wordData.word;
+    const qWord = document.getElementById('q-word');
+    const categoryBadge = document.getElementById('q-category');
     const optionsContainer = document.getElementById('options-area');
     const input = document.getElementById('manual-input');
     const submit = document.getElementById('submit-btn');
+
+    // Show category
+    if (categoryBadge) {
+        categoryBadge.textContent = (wordData.category || 'default').toUpperCase();
+        categoryBadge.style.display = 'block';
+    }
 
     // Reset state
     isAnswered = false;
@@ -365,7 +398,7 @@ function showQuiz(wordData, mode) {
     if (!wordStates[currentWordIndex]) {
         wordStates[currentWordIndex] = null;
     }
-    // Store the mode type (translation or transcription)
+    // Store the mode type
     wordStates[currentWordIndex] = { mode: mode, answered: null };
 
     // For transcription mode, force options mode and hide manual toggle
@@ -373,34 +406,61 @@ function showQuiz(wordData, mode) {
     if (mode === 'transcription') {
         // Force options mode for transcription
         currentMode = 'options';
-
-        // Hide mode controls entirely for transcription
-        if (modeControlsContainer) {
-            modeControlsContainer.style.display = 'none';
-        }
-
+        if (modeControlsContainer) modeControlsContainer.style.display = 'none';
         setMode('options');
     } else {
-        // Show mode controls for translation
-        if (modeControlsContainer) {
-            modeControlsContainer.style.display = '';
-        }
-
-        // Set UI mode if needed
+        // Show mode controls for translation/reverse
+        if (modeControlsContainer) modeControlsContainer.style.display = '';
         setMode(currentMode);
     }
 
     let correctAnswer;
-    let options;
+    let options = [];
 
     if (mode === 'translation') {
-        // TRANSLATION QUIZ
+        // TRANSLATION QUIZ: Word -> Translation
+        qWord.textContent = wordData.word;
         console.log('[Quiz] Translation:', wordData.word);
-        correctAnswer = wordData.translation;
-        options = [{ text: wordData.translation, correct: true }];
 
-        if (wordData.distractors && Array.isArray(wordData.distractors)) {
-            wordData.distractors.slice(0, 3).forEach(d => options.push({ text: d, correct: false }));
+        const translation = getTranslation(wordData.translation);
+        correctAnswer = translation;
+        options.push({ text: translation, correct: true });
+
+        // Get distractors based on language
+        let distractors = [];
+        const lang = i18n.language || 'ru';
+        if (lang === 'en') distractors = wordData.distractors_en || [];
+        else if (lang === 'uk') distractors = wordData.distractors_uk || [];
+        else distractors = wordData.distractors_ru || [];
+
+        // Fallback to generic distractors if specific ones missing
+        if (!distractors || distractors.length === 0) {
+            distractors = wordData.distractors || [];
+        }
+
+        if (distractors && distractors.length > 0) {
+            distractors.slice(0, 3).forEach(d => options.push({ text: d, correct: false }));
+        } else {
+            options.push(
+                { text: 'Option A', correct: false },
+                { text: 'Option B', correct: false },
+                { text: 'Option C', correct: false }
+            );
+        }
+    } else if (mode === 'reverse_translation') {
+        // REVERSE QUIZ: Translation -> Word
+        const translation = getTranslation(wordData.translation);
+        qWord.textContent = translation;
+        console.log('[Quiz] Reverse:', translation);
+
+        correctAnswer = wordData.word;
+        options.push({ text: wordData.word, correct: true });
+
+        // Use original language distractors
+        let distractors = wordData.distractors_original || [];
+
+        if (distractors && distractors.length > 0) {
+            distractors.slice(0, 3).forEach(d => options.push({ text: d, correct: false }));
         } else {
             options.push(
                 { text: 'Option A', correct: false },
@@ -409,10 +469,11 @@ function showQuiz(wordData, mode) {
             );
         }
     } else {
-        // TRANSCRIPTION QUIZ
+        // TRANSCRIPTION QUIZ: Word -> Transcription
+        qWord.textContent = wordData.word;
         console.log('[Quiz] Transcription:', wordData.word);
         correctAnswer = wordData.transcription || '[no transcription]';
-        options = [{ text: wordData.transcription || '[no transcription]', correct: true }];
+        options.push({ text: wordData.transcription || '[no transcription]', correct: true });
 
         if (wordData.transcription_distractors && Array.isArray(wordData.transcription_distractors)) {
             wordData.transcription_distractors.slice(0, 3).forEach(d => options.push({ text: d, correct: false }));
@@ -431,7 +492,11 @@ function showQuiz(wordData, mode) {
     options.forEach(opt => {
         const btn = document.createElement('div');
         btn.className = 'option-btn';
-        btn.textContent = opt.text;
+        // Use formatted text for display (random synonym)
+        btn.textContent = formatOptionForDisplay(opt.text);
+        // Store correctness in dataset for easy retrieval
+        btn.dataset.isCorrect = opt.correct;
+
         btn.onclick = () => {
             if (!isAnswered) {
                 handleOptionClick(opt.correct, btn, correctAnswer);
@@ -457,7 +522,8 @@ function handleOptionClick(isCorrect, element, correctAnswer) {
     // If wrong, also highlight correct answer
     if (!isCorrect) {
         allButtons.forEach(btn => {
-            if (btn.textContent.toLowerCase().trim() === String(correctAnswer).toLowerCase().trim()) {
+            // Check dataset instead of text content
+            if (btn.dataset.isCorrect === 'true') {
                 btn.classList.add('correct');
             }
         });

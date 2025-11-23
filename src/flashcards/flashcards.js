@@ -1,5 +1,5 @@
 import { I18nService } from '../services/i18n.js';
-import { isCloseMatch } from '../services/utils.js';
+import { isCloseMatch, formatOptionForDisplay } from '../services/utils.js';
 
 const i18n = new I18nService();
 let cards = [];
@@ -55,7 +55,10 @@ async function loadCards() {
         const response = await chrome.runtime.sendMessage({ type: 'GENERATE_FLASHCARDS' });
 
         if (response.success && response.data && response.data.length > 0) {
-            cards = response.data.map(c => ({
+            // Filter out invalid cards
+            const validData = response.data.filter(c => c && c.word && c.translation);
+
+            cards = validData.map(c => ({
                 ...c,
                 word: typeof c.word === 'object' ? JSON.stringify(c.word) : String(c.word || ''),
                 translation: typeof c.translation === 'object' ? JSON.stringify(c.translation) : String(c.translation || ''),
@@ -100,7 +103,7 @@ function showCard(index) {
     updateProgressSidebar();
 
     // Show Translation as the "Question" (Front of card)
-    document.getElementById('card-front-text').textContent = card.translation;
+    document.getElementById('card-front-text').textContent = formatOptionForDisplay(card.translation);
     document.getElementById('card-transcription').textContent = '';
 
     // Reset Input
@@ -183,8 +186,13 @@ function resolveCard(success) {
         const exampleText = document.getElementById('example-text');
 
         // Highlight the word in the example if possible
-        const regex = new RegExp(`\\b${card.word}\\b`, 'gi');
-        const highlightedExample = card.example.replace(regex, `<b>${card.word}</b>`);
+        let highlightedExample = card.example;
+        try {
+            const regex = new RegExp(`\\b${card.word}\\b`, 'gi');
+            highlightedExample = card.example.replace(regex, `<b>${card.word}</b>`);
+        } catch (e) {
+            console.warn('Error highlighting example:', e);
+        }
 
         exampleText.innerHTML = highlightedExample;
         exampleBox.classList.remove('hidden');

@@ -136,6 +136,13 @@ export const translations = {
         word_detail_wrong: "Wrong:",
         word_detail_added: "Added:",
         add_category: "Add Category",
+        context_cards_title: "Context Cards",
+        context_cards_loading: "Loading cards...",
+        context_cards_reviewed_all: "You've completed all cards!",
+        context_cards_complete: "Great Job!",
+        context_cards_start_over: "Start Over",
+        context_cards_close: "Close",
+        context_cards: "Context Cards"
     },
     ru: {
         extName: "AI Словарь Субтитров",
@@ -274,6 +281,13 @@ export const translations = {
         word_detail_wrong: "Ошибок:",
         word_detail_added: "Добавлено:",
         add_category: "Добавить категорию",
+        context_cards_title: "Контекстные карточки",
+        context_cards_loading: "Загрузка карточек...",
+        context_cards_reviewed_all: "Вы повторили все слова!",
+        context_cards_complete: "Отличная работа!",
+        context_cards_start_over: "Начать заново",
+        context_cards_close: "Закрыть",
+        context_cards: "Контекстные карточки"
     },
     uk: {
         extName: "AI Словник Субтитрів",
@@ -412,6 +426,13 @@ export const translations = {
         word_detail_wrong: "Помилок:",
         word_detail_added: "Додано:",
         add_category: "Додати категорію",
+        context_cards_title: "Контекстні картки",
+        context_cards_loading: "Завантаження карток...",
+        context_cards_reviewed_all: "Ви повторили всі слова!",
+        context_cards_complete: "Чудова Робота!",
+        context_cards_start_over: "Почати заново",
+        context_cards_close: "Закрити",
+        context_cards: "Контекстні картки"
 
     }
 };

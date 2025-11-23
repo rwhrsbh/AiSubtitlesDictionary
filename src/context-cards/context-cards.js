@@ -1,5 +1,5 @@
 import { I18nService } from '../services/i18n.js';
-import { isCloseMatch } from '../services/utils.js';
+import { isCloseMatch, formatOptionForDisplay } from '../services/utils.js';
 
 const i18n = new I18nService();
 
@@ -192,7 +192,7 @@ function handleManualResult(side, result, input, correctAnswer) {
         const optionBtns = optionsContainer.querySelectorAll('.option-btn');
         optionBtns.forEach(btn => {
             btn.disabled = true;
-            if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+            if (btn.dataset.fullValue && btn.dataset.fullValue.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
                 btn.classList.add('correct');
             }
         });
@@ -306,10 +306,14 @@ async function loadFlashcards() {
             return;
         }
 
-        flashcards = response.data;
         if (response.targetLanguage) {
             targetLanguage = response.targetLanguage.toUpperCase();
         }
+
+        // Filter out invalid cards
+        flashcards = (response.data || []).filter(card => {
+            return card && card.word && card.en && card.ru;
+        });
 
         if (!flashcards || flashcards.length === 0) {
             showError(i18n.getMessage('error_no_words'));
@@ -421,8 +425,10 @@ function showCard(index) {
     });
 
     // Update card content
-    document.getElementById('front-sentence').textContent = card.en.replace(/_+/g, '______');
-    document.getElementById('back-sentence').textContent = card.ru.replace(/_+/g, '______');
+    const enText = card.en || '';
+    const ruText = card.ru || '';
+    document.getElementById('front-sentence').textContent = enText.replace(/_+/g, '______');
+    document.getElementById('back-sentence').textContent = ruText.replace(/_+/g, '______');
 
     // Dynamically determine language badges based on word_language
     const wordLang = card.word_language || 'English'; // Default to English if not specified
@@ -534,7 +540,8 @@ function renderOptions(containerId, options, correctAnswerEn, language) {
     options.forEach((option, index) => {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
-        btn.textContent = option;
+        btn.textContent = formatOptionForDisplay(option);
+        btn.dataset.fullValue = option;
 
         // Restore previous state if already answered
         if (isAnswered) {
@@ -591,7 +598,7 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
         btn.classList.add('wrong');
         // Highlight correct answer
         allButtons.forEach(b => {
-            if (b.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+            if (b.dataset.fullValue && b.dataset.fullValue.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
                 b.classList.add('correct');
             }
         });

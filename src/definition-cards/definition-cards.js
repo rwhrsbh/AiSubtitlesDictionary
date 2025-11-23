@@ -1,5 +1,5 @@
 import { I18nService } from '../services/i18n.js';
-import { isCloseMatch } from '../services/utils.js';
+import { isCloseMatch, formatOptionForDisplay } from '../services/utils.js';
 
 const i18n = new I18nService();
 
@@ -201,7 +201,7 @@ function handleManualResult(side, result, input, correctAnswer) {
         const optionBtns = optionsContainer.querySelectorAll('.option-btn');
         optionBtns.forEach(btn => {
             btn.disabled = true;
-            if (btn.textContent.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+            if (btn.dataset.fullValue && btn.dataset.fullValue.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
                 btn.classList.add('correct');
             }
         });
@@ -565,7 +565,8 @@ function renderOptions(containerId, distractors, correctAnswer, language) {
     options.forEach(option => {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
-        btn.textContent = option;
+        btn.textContent = formatOptionForDisplay(option);
+        btn.dataset.fullValue = option;
 
         if (isAnswered) {
             btn.disabled = true;
@@ -607,7 +608,7 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
     } else {
         btn.classList.add('wrong');
         allButtons.forEach(b => {
-            if (b.textContent === correctAnswer) b.classList.add('correct');
+            if (b.dataset.fullValue === correctAnswer) b.classList.add('correct');
         });
     }
 

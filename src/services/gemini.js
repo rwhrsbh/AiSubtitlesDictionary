@@ -30,7 +30,10 @@ export class GeminiService {
             - transcription: The phonetic transcription (IPA format) of the ORIGINAL word "${word}"
             - explanation: A brief explanation of the meaning in ${userInterfaceLang}
             - examples: An array of 2 short example sentences using the ORIGINAL word "${word}"
-            - distractors: An array of 3 incorrect translations for a multiple choice quiz
+            - distractors_en: An array of 3 incorrect translations in English
+            - distractors_ru: An array of 3 incorrect translations in Russian
+            - distractors_uk: An array of 3 incorrect translations in Ukrainian
+            - distractors_original: An array of 3 words in the ORIGINAL language (${overrideLanguage}) that look/sound similar to "${word}" or are semantically related but wrong (for reverse translation quiz)
             - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong
 
             Return ONLY the JSON.
@@ -48,7 +51,10 @@ export class GeminiService {
             - transcription: The phonetic transcription (IPA format) of the ORIGINAL word "${word}"
             - explanation: A brief explanation of the meaning in ${userInterfaceLang}
             - examples: An array of 2 short example sentences using the ORIGINAL word "${word}"
-            - distractors: An array of 3 incorrect translations for a multiple choice quiz
+            - distractors_en: An array of 3 incorrect translations in English
+            - distractors_ru: An array of 3 incorrect translations in Russian
+            - distractors_uk: An array of 3 incorrect translations in Ukrainian
+            - distractors_original: An array of 3 words in the ORIGINAL language that look/sound similar to "${word}" or are semantically related but wrong (for reverse translation quiz)
             - transcription_distractors: An array of 3 incorrect phonetic transcriptions that look plausible but are wrong
 
             Return ONLY the JSON.
@@ -71,7 +77,13 @@ export class GeminiService {
         const text = data.candidates[0].content.parts[0].text;
         // Clean up markdown code blocks if present
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(jsonStr);
+        const result = JSON.parse(jsonStr);
+
+        // Backward compatibility: map current UI lang distractors to 'distractors' field
+        const uiLangCode = language === 'uk' ? 'uk' : (language === 'ru' ? 'ru' : 'en');
+        result.distractors = result[`distractors_${uiLangCode}`] || result.distractors_en || [];
+
+        return result;
     }
     async fetchModels(apiKey) {
         const now = Date.now();

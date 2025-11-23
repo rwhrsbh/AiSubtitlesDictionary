@@ -86,3 +86,17 @@ export function isCloseMatch(input, target, alternateTarget = null) {
         distance: -1
     };
 }
+
+export function formatOptionForDisplay(text) {
+    if (!text) return '';
+    // Split by common separators: comma, slash, semicolon, pipe, bullet, tilde, or period followed by space
+    const variants = text
+        .split(/[,/;|•~]|\.\s+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    if (variants.length === 0) return text;
+
+    // Return one random variant
+    return variants[Math.floor(Math.random() * variants.length)];
+}

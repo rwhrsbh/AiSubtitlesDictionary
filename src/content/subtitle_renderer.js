@@ -2,6 +2,8 @@
 
 let currentEvents = [];
 let renderInterval = null;
+let selectionStartWord = null;
+let isSelecting = false;
 
 window.startRenderingSubtitles = async function (events) {
     console.log('[Subtitle Renderer] Starting with', events.length, 'events');
@@ -162,8 +164,15 @@ function updateSubtitles() {
                 // Add click listeners
                 const spans = container.querySelectorAll('.aisub-word');
                 spans.forEach(span => {
+                    // Left Click - Single Word
                     span.addEventListener('click', async (e) => {
                         e.stopPropagation();
+
+                        // If we were selecting, a left click cancels it
+                        if (isSelecting) {
+                            clearSelection();
+                            return;
+                        }
 
                         // Extract clean word (remove punctuation)
                         const rawText = span.textContent;
@@ -183,6 +192,77 @@ function updateSubtitles() {
                             } else {
                                 // Make API request for new word
                                 window.openWordPopup(cleanWord, e.clientX, e.clientY);
+                            }
+                        }
+                    });
+
+                    // Right Click - Range Selection
+                    span.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (!isSelecting) {
+                            // Clear any previous permanent selection
+                            clearSelection();
+
+                            // Start selection
+                            isSelecting = true;
+                            selectionStartWord = span;
+                            span.classList.add('aisub-selecting');
+                            video.pause();
+                        } else {
+                            // End selection
+                            const allWords = Array.from(container.querySelectorAll('.aisub-word'));
+                            const startIndex = allWords.indexOf(selectionStartWord);
+                            const endIndex = allWords.indexOf(span);
+
+                            if (startIndex !== -1 && endIndex !== -1) {
+                                const start = Math.min(startIndex, endIndex);
+                                const end = Math.max(startIndex, endIndex);
+
+                                const selectedWords = allWords.slice(start, end + 1);
+
+                                // Apply permanent highlight
+                                selectedWords.forEach(w => {
+                                    w.classList.remove('aisub-selecting');
+                                    w.classList.remove('aisub-selected-range');
+                                    w.classList.add('aisub-highlighted-permanent');
+                                });
+
+                                // Extract text preserving spaces
+                                const phrase = selectedWords.map(w => w.textContent).join(' ');
+                                // Clean up but keep structure
+                                const cleanPhrase = phrase.replace(/[^\p{L}\p{N}\s''-]/gu, '').trim();
+
+                                if (cleanPhrase) {
+                                    window.openWordPopup(cleanPhrase, e.clientX, e.clientY);
+                                }
+                            }
+
+                            // Reset selection state but keep highlight
+                            isSelecting = false;
+                            selectionStartWord = null;
+                        }
+                    });
+
+                    // Hover effect during selection
+                    span.addEventListener('mouseover', () => {
+                        if (isSelecting && selectionStartWord) {
+                            const allWords = Array.from(container.querySelectorAll('.aisub-word'));
+                            const startIndex = allWords.indexOf(selectionStartWord);
+                            const currentIndex = allWords.indexOf(span);
+
+                            if (startIndex !== -1 && currentIndex !== -1) {
+                                const start = Math.min(startIndex, currentIndex);
+                                const end = Math.max(startIndex, currentIndex);
+
+                                allWords.forEach((w, i) => {
+                                    if (i >= start && i <= end) {
+                                        w.classList.add('aisub-selected-range');
+                                    } else {
+                                        w.classList.remove('aisub-selected-range');
+                                    }
+                                });
                             }
                         }
                     });
@@ -230,6 +310,35 @@ async function loadLearnedWords() {
         return {};
     }
 }
+
+function clearSelection() {
+    isSelecting = false;
+    selectionStartWord = null;
+    const container = document.getElementById('aisub-container');
+    if (container) {
+        const words = container.querySelectorAll('.aisub-word');
+        words.forEach(w => {
+            w.classList.remove('aisub-selecting');
+            w.classList.remove('aisub-selected-range');
+            w.classList.remove('aisub-highlighted-permanent');
+        });
+    }
+}
+
+// Clear selection on outside click
+document.addEventListener('click', (e) => {
+    if (isSelecting) {
+        // If clicking inside container but not on a word, we still clear
+        // If clicking on a word, the word's click handler handles it (and clears it)
+        // But we need to make sure we don't double clear or interfere
+        const container = document.getElementById('aisub-container');
+        if (!container || !container.contains(e.target)) {
+            clearSelection();
+        } else if (!e.target.classList.contains('aisub-word')) {
+            clearSelection();
+        }
+    }
+});
 
 window.stopRenderingSubtitles = function () {
     console.log('[Subtitle Renderer] Stopping...');
@@ -471,6 +580,20 @@ function initSettings(container) {
                 color: ${textColor} !important;
                 opacity: ${textOpacity};
             }
+            .aisub-selecting {
+                background-color: rgba(255, 215, 0, 0.9) !important;
+                color: black !important;
+                border-radius: 4px;
+            }
+            .aisub-selected-range {
+                background-color: rgba(255, 215, 0, 0.4) !important;
+                border-radius: 4px;
+            }
+            .aisub-highlighted-permanent {
+                background-color: rgba(255, 215, 0, 0.9) !important;
+                color: black !important;
+                border-radius: 4px;
+            }
         `;
 
         const oldStyle = document.getElementById('aisub-dynamic-style');
@@ -510,6 +633,9 @@ function initSettings(container) {
                 document.getElementById('aisub-learned-progress-color').value = res.subSettings.learnedProgressColor;
             }
 
+            updateStyles();
+        } else {
+            // Apply defaults if no settings saved
             updateStyles();
         }
     });

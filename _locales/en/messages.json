@@ -307,5 +307,26 @@
     },
     "card_plural": {
         "message": "cards"
+    },
+    "context_cards_title": {
+        "message": "Context Cards"
+    },
+    "context_cards_loading": {
+        "message": "Loading cards..."
+    },
+    "context_cards_reviewed_all": {
+        "message": "You've completed all cards!"
+    },
+    "context_cards_complete": {
+        "message": "Great Job!"
+    },
+    "context_cards_start_over": {
+        "message": "Start Over"
+    },
+    "context_cards_close": {
+        "message": "Close"
+    },
+    "context_cards": {
+        "message": "Context Cards"
     }
 }

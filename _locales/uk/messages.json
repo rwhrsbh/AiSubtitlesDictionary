@@ -304,5 +304,26 @@
     },
     "card_plural": {
         "message": "карток"
+    },
+    "context_cards_title": {
+        "message": "Контекстні картки"
+    },
+    "context_cards_loading": {
+        "message": "Завантаження карток..."
+    },
+    "context_cards_reviewed_all": {
+        "message": "Ви повторили всі слова!"
+    },
+    "context_cards_complete": {
+        "message": "Чудова Робота!"
+    },
+    "context_cards_start_over": {
+        "message": "Почати Спочатку"
+    },
+    "context_cards_close": {
+        "message": "Закрити"
+    },
+    "context_cards": {
+        "message": "Контекстні картки"
     }
 }
