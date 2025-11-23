@@ -7,6 +7,9 @@ let currentIndex = 0;
 let attempts = 0;
 let isCardResolved = false;
 let cardStates = []; // Track state of each card: null (unanswered), true (correct), false (incorrect)
+let mistakeCards = []; // Cards that were answered incorrectly
+let isReviewingMistakes = false;
+let originalCardsCount = 0;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await i18n.init();
@@ -67,6 +70,7 @@ async function loadCards() {
             }));
 
             cardStates = new Array(cards.length).fill(null);
+            originalCardsCount = cards.length;
             document.getElementById('total-count').textContent = cards.length;
 
             initializeProgressSidebar();
@@ -87,16 +91,36 @@ async function loadCards() {
 
 function showCard(index) {
     if (index >= cards.length) {
-        showEmptyState();
+        // Check if all cards are answered
+        const hasUnanswered = cardStates.some((state, idx) => idx < originalCardsCount && state === null);
+        if (hasUnanswered) {
+            // Find first unanswered
+            const firstUnanswered = cardStates.findIndex((state, idx) => idx < originalCardsCount && state === null);
+            if (firstUnanswered !== -1) {
+                showCard(firstUnanswered);
+                return;
+            }
+        }
+        // All cards answered, show complete screen
+        showCompleteScreen();
         return;
     }
 
     currentIndex = index;
     const card = cards[index];
 
-    // Reset State
-    attempts = 0;
-    isCardResolved = false;
+    // Check if card was already answered - if so, show answer immediately
+    const wasAnswered = cardStates[currentIndex] !== null;
+
+    // Reset State (unless already answered)
+    if (!wasAnswered) {
+        attempts = 0;
+        isCardResolved = false;
+    } else {
+        // Card was already answered - show as resolved
+        attempts = cardStates[currentIndex] === false ? 3 : 0;
+        isCardResolved = true;
+    }
 
     // Update UI
     document.getElementById('current-index').textContent = index + 1;
@@ -116,26 +140,62 @@ function showCard(index) {
 
     // Show Translation as the "Question" (Front of card)
     document.getElementById('card-front-text').textContent = formatOptionForDisplay(card.translation);
-    document.getElementById('card-transcription').textContent = '';
+    document.getElementById('card-transcription').textContent = wasAnswered && card.transcription ? card.transcription : '';
 
-    // Reset Input
+    // Reset/Restore Input
     const input = document.getElementById('answer-input');
-    input.value = '';
-    input.disabled = false;
-    input.className = 'manual-input';
-    input.focus();
 
-    // Reset Dots
+    if (wasAnswered) {
+        // Show answer
+        const success = cardStates[currentIndex];
+        input.value = card.word;
+        input.disabled = true;
+        input.className = success ? 'manual-input correct' : 'manual-input wrong';
+
+        // Show correct answer if wrong
+        if (!success) {
+            document.getElementById('correct-answer-display').textContent = card.word;
+            document.getElementById('correct-answer-display').classList.remove('hidden');
+        } else {
+            document.getElementById('correct-answer-display').classList.add('hidden');
+        }
+
+        // Show example
+        if (card.example) {
+            const exampleBox = document.getElementById('example-display');
+            const exampleText = document.getElementById('example-text');
+            let highlightedExample = card.example;
+            try {
+                const regex = new RegExp(`\\b${card.word}\\b`, 'gi');
+                highlightedExample = card.example.replace(regex, `<b>${card.word}</b>`);
+            } catch (e) {
+                console.warn('Error highlighting example:', e);
+            }
+            exampleText.innerHTML = highlightedExample;
+            exampleBox.classList.remove('hidden');
+        }
+
+        document.getElementById('feedback-area').classList.remove('hidden');
+        document.getElementById('check-btn').classList.add('hidden');
+        document.getElementById('idk-btn').classList.add('hidden');
+        document.getElementById('next-btn').classList.remove('hidden');
+    } else {
+        // Fresh card - reset to initial state
+        input.value = '';
+        input.disabled = false;
+        input.className = 'manual-input';
+        input.focus();
+
+        document.getElementById('feedback-area').classList.add('hidden');
+        document.getElementById('correct-answer-display').classList.add('hidden');
+        document.getElementById('example-display').classList.add('hidden');
+        document.getElementById('check-btn').classList.remove('hidden');
+        document.getElementById('idk-btn').classList.remove('hidden');
+        document.getElementById('next-btn').classList.add('hidden');
+    }
+
+    // Reset/Restore Dots
     updateDots();
-
-    // Hide Feedback / Controls
-    document.getElementById('feedback-area').classList.add('hidden');
-    document.getElementById('correct-answer-display').classList.add('hidden');
-    document.getElementById('example-display').classList.add('hidden');
-
-    document.getElementById('check-btn').classList.remove('hidden');
-    document.getElementById('idk-btn').classList.remove('hidden');
-    document.getElementById('next-btn').classList.add('hidden');
 }
 
 function handleCheck() {
@@ -229,6 +289,14 @@ function resolveCard(success) {
         word: card.word,
         success: success
     });
+
+    // Track mistakes for review (only if not already reviewing and in original cards)
+    if (!success && !isReviewingMistakes && currentIndex < originalCardsCount) {
+        const alreadyAdded = mistakeCards.some(mc => mc.word === card.word);
+        if (!alreadyAdded) {
+            mistakeCards.push(JSON.parse(JSON.stringify(card)));
+        }
+    }
 }
 
 function updateDots() {
@@ -243,7 +311,20 @@ function updateDots() {
 }
 
 function nextCard() {
-    showCard(currentIndex + 1);
+    if (currentIndex < cards.length - 1) {
+        showCard(currentIndex + 1);
+    } else {
+        // Last card, check if all answered
+        const hasUnanswered = cardStates.some((state, idx) => idx < originalCardsCount && state === null);
+        if (hasUnanswered) {
+            const firstUnanswered = cardStates.findIndex((state, idx) => idx < originalCardsCount && state === null);
+            if (firstUnanswered !== -1) {
+                showCard(firstUnanswered);
+            }
+        } else {
+            showCompleteScreen();
+        }
+    }
 }
 
 function showEmptyState() {
@@ -296,4 +377,70 @@ function updateProgressSidebar() {
             box.classList.add('active');
         }
     });
+}
+
+// Show complete screen with option to review mistakes
+function showCompleteScreen() {
+    if (!isReviewingMistakes && mistakeCards.length > 0) {
+        // Show review mistakes prompt
+        const emptyState = document.getElementById('empty-state');
+        emptyState.innerHTML = `
+            <div class="complete-icon" style="animation: bounce 1s ease infinite;">📝</div>
+            <h2>${i18n.getMessage('mistakes_review_title') || 'Review Mistakes?'}</h2>
+            <p>${i18n.getMessage('mistakes_review_subtitle') || 'You have some incorrect answers. Would you like to review them?'}</p>
+            <div style="font-size: 20px; margin: 20px 0; font-weight: 600;">${mistakeCards.length} ${mistakeCards.length === 1 ? (i18n.getMessage('card_singular') || 'card') : (i18n.getMessage('card_plural') || 'cards')}</div>
+            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 32px;">
+                <button id="start-review-btn" class="control-btn primary">${i18n.getMessage('start_review') || 'Review Mistakes'}</button>
+                <button id="close-review-btn" class="control-btn">${i18n.getMessage('flashcards_close') || 'Close'}</button>
+            </div>
+        `;
+
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('card-container').classList.add('hidden');
+        emptyState.classList.remove('hidden');
+
+        // Setup review buttons
+        document.getElementById('start-review-btn').addEventListener('click', startMistakeReview);
+        document.getElementById('close-review-btn').addEventListener('click', () => window.close());
+    } else {
+        // No mistakes or already reviewed - show final complete screen
+        const emptyState = document.getElementById('empty-state');
+        emptyState.innerHTML = `
+            <div class="complete-icon" style="animation: bounce 1s ease infinite;">🎉</div>
+            <h2>${i18n.getMessage('flashcards_complete') || 'Great Job!'}</h2>
+            <p>${i18n.getMessage('flashcards_complete_msg') || 'You have completed all flashcards!'}</p>
+            <button id="close-final-btn" class="control-btn primary">${i18n.getMessage('flashcards_close') || 'Close'}</button>
+        `;
+
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('card-container').classList.add('hidden');
+        emptyState.classList.remove('hidden');
+
+        document.getElementById('close-final-btn').addEventListener('click', () => window.close());
+    }
+}
+
+// Start mistake review
+function startMistakeReview() {
+    isReviewingMistakes = true;
+
+    // Add mistake cards to the end
+    const mistakeStartIndex = cards.length;
+    mistakeCards.forEach((card, index) => {
+        cards.push(card);
+        cardStates.push(null);
+    });
+
+    // Update UI
+    document.getElementById('empty-state').classList.add('hidden');
+    document.getElementById('card-container').classList.remove('hidden');
+    document.getElementById('total-count').textContent = mistakeCards.length;
+
+    // Reinitialize progress sidebar for mistake cards only
+    initializeProgressSidebar();
+
+    // Show first mistake card
+    currentIndex = mistakeStartIndex;
+    document.getElementById('current-index').textContent = 1;
+    showCard(mistakeStartIndex);
 }

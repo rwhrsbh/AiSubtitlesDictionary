@@ -393,9 +393,11 @@ function showCard(index) {
         }
     });
 
-    // Update English side
-    const defEn = card.definitions[0]?.meaning_en || 'No definition';
-    document.getElementById('card-hint-en').textContent = defEn;
+    // Update front side (original language)
+    const wordLangCode = card.word_language_code || 'en';
+    const meaningKey = `meaning_${wordLangCode}`;
+    const defFront = card.definitions[0]?.[meaningKey] || card.definitions[0]?.meaning_en || 'No definition';
+    document.getElementById('card-hint-en').textContent = defFront;
     document.getElementById('card-transcription').textContent = card.transcription || '';
 
     // Show/hide transcription based on answered state
@@ -405,9 +407,11 @@ function showCard(index) {
         document.getElementById('card-transcription').classList.add('hidden');
     }
 
-    // Update Russian side
-    const defRu = card.definitions[0]?.meaning_ru || 'Нет определения';
-    document.getElementById('card-hint-ru').textContent = defRu;
+    // Update back side (target language)
+    const targetLangCode = targetLanguage.toLowerCase();
+    const targetMeaningKey = `meaning_${targetLangCode}`;
+    const defBack = card.definitions[0]?.[targetMeaningKey] || card.definitions[0]?.meaning_ru || 'Нет определения';
+    document.getElementById('card-hint-ru').textContent = defBack;
     document.getElementById('card-transcription-ru').textContent = card.transcription || '';
 
     // Show/hide transcription based on answered state
@@ -467,8 +471,8 @@ function showCard(index) {
     }
 
     // Render Examples (will be replaced with answers if side was answered)
-    renderExamples('examples-container-en', card.definitions, 'en');
-    renderExamples('examples-container-ru', card.definitions, 'ru');
+    renderExamples('examples-container-en', card.definitions, wordLangCode, card);
+    renderExamples('examples-container-ru', card.definitions, targetLangCode, card);
 
     // Replace blanks if sides were answered
     if (frontAnswered) {
@@ -479,8 +483,13 @@ function showCard(index) {
     }
 
     // Render Options
-    renderOptions('front-options', card.distractors_en, card.word, 'en');
-    renderOptions('back-options', card.distractors_ru, card.word_ru || card.word, 'ru');
+    const frontDistractorsKey = `distractors_${wordLangCode}`;
+    const backDistractorsKey = `distractors_${targetLangCode}`;
+    const frontDistractors = card[frontDistractorsKey] || card.distractors_en || [];
+    const backDistractors = card[backDistractorsKey] || card.distractors_ru || [];
+    const backWord = card[`word_${targetLangCode}`] || card.word_ru || card.word;
+    renderOptions('front-options', frontDistractors, card.word, wordLangCode);
+    renderOptions('back-options', backDistractors, backWord, targetLangCode);
 
     // Scale card to fit viewport
     setTimeout(() => {
@@ -550,14 +559,14 @@ window.addEventListener('resize', () => {
 });
 
 // Render examples
-function renderExamples(containerId, definitions, language) {
+function renderExamples(containerId, definitions, langCode, card) {
     const container = document.getElementById(containerId);
     container.innerHTML = '';
     if (!definitions || definitions.length === 0) return;
 
     definitions.forEach(def => {
-        const examplesKey = language === 'en' ? 'examples_en' : 'examples_ru';
-        const examples = def[examplesKey] || def.examples || [];
+        const examplesKey = `examples_${langCode}`;
+        const examples = def[examplesKey] || def.examples_en || def.examples || [];
 
         examples.forEach(example => {
             const div = document.createElement('div');
@@ -673,37 +682,42 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
 // Replace blanks for a specific side only
 function replaceBlanksForSide(side) {
     const card = cards[currentIndex];
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
 
     if (side === 'front') {
-        // Replace blanks in English examples only
-        const examplesContainerEn = document.getElementById('examples-container-en');
-        if (examplesContainerEn && card.definitions) {
-            examplesContainerEn.innerHTML = '';
+        // Replace blanks in original language examples only
+        const examplesContainerFront = document.getElementById('examples-container-en');
+        if (examplesContainerFront && card.definitions) {
+            examplesContainerFront.innerHTML = '';
             card.definitions.forEach(def => {
-                const examples = def.examples_en || def.examples || [];
+                const examplesKey = `examples_${wordLangCode}`;
+                const examples = def[examplesKey] || def.examples_en || def.examples || [];
                 examples.forEach(example => {
                     const div = document.createElement('div');
                     div.className = 'example-item';
                     const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${card.word}</strong>`);
                     div.innerHTML = filled;
-                    examplesContainerEn.appendChild(div);
+                    examplesContainerFront.appendChild(div);
                 });
             });
         }
     } else {
-        // Replace blanks in Russian/target language examples only
-        const examplesContainerRu = document.getElementById('examples-container-ru');
-        if (examplesContainerRu && card.definitions) {
-            examplesContainerRu.innerHTML = '';
+        // Replace blanks in target language examples only
+        const examplesContainerBack = document.getElementById('examples-container-ru');
+        if (examplesContainerBack && card.definitions) {
+            examplesContainerBack.innerHTML = '';
             card.definitions.forEach(def => {
-                const examples = def.examples_ru || def.examples || [];
+                const examplesKey = `examples_${targetLangCode}`;
+                const examples = def[examplesKey] || def.examples_ru || def.examples || [];
                 examples.forEach(example => {
                     const div = document.createElement('div');
                     div.className = 'example-item';
-                    const wordToFill = card.word_ru || card.word;
+                    const wordKey = `word_${targetLangCode}`;
+                    const wordToFill = card[wordKey] || card.word_ru || card.word;
                     const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
                     div.innerHTML = filled;
-                    examplesContainerRu.appendChild(div);
+                    examplesContainerBack.appendChild(div);
                 });
             });
         }

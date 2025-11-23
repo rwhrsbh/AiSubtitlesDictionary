@@ -155,6 +155,7 @@ h1 {
     cursor: pointer;
     transition: all 0.2s;
     border: 2px solid #334155;
+    color: white;
 }
 
 .progress-box.unanswered {

@@ -142,7 +142,7 @@ export const translations = {
         context_cards_complete: "Great Job!",
         context_cards_start_over: "Start Over",
         context_cards_close: "Close",
-        context_cards: "Context Cards"
+        context_cards: "💭 Context Cards"
     },
     ru: {
         extName: "AI Словарь Субтитров",
@@ -287,7 +287,7 @@ export const translations = {
         context_cards_complete: "Отличная работа!",
         context_cards_start_over: "Начать заново",
         context_cards_close: "Закрыть",
-        context_cards: "Контекстные карточки"
+        context_cards: "💭 Контекстные карточки"
     },
     uk: {
         extName: "AI Словник Субтитрів",
@@ -432,7 +432,7 @@ export const translations = {
         context_cards_complete: "Чудова Робота!",
         context_cards_start_over: "Почати заново",
         context_cards_close: "Закрити",
-        context_cards: "Контекстні картки"
+        context_cards: "💭 Контекстні картки"
 
     }
 };

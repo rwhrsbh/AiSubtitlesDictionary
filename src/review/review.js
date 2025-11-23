@@ -374,6 +374,7 @@ function showQuiz(wordData, mode) {
 
     // Show category
     if (categoryBadge) {
+        console.log(`[Review] Showing word: "${wordData.word}", Category: "${wordData.category}", Lang: "${wordData.word_language}"`);
         categoryBadge.textContent = wordData.category || 'default';
         if (wordData.word_language) {
             categoryBadge.textContent += ` • ${wordData.word_language}`;

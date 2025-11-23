@@ -310,10 +310,35 @@ async function loadFlashcards() {
             targetLanguage = response.targetLanguage.toUpperCase();
         }
 
-        // Filter out invalid cards
+        console.log('🔍 Load Flashcards Debug:');
+        console.log('Target Language:', targetLanguage);
+        console.log('Raw cards count:', (response.data || []).length);
+
+        // Filter out invalid cards - check if card has word and at least sentence keys
         flashcards = (response.data || []).filter(card => {
-            return card && card.word && card.en && card.ru;
+            if (!card || !card.word) {
+                console.log('❌ Invalid card structure:', card);
+                return false;
+            }
+            // Check if card has sentence in original language (word_language_code key exists)
+            const wordLangCode = card.word_language_code || 'en';
+            const targetLangCode = targetLanguage.toLowerCase();
+
+            const hasFront = !!card[wordLangCode];
+            const hasBack = !!card[targetLangCode];
+
+            if (!hasFront || !hasBack) {
+                console.log(`❌ Card filtered out: ${card.word}`);
+                console.log(`   Word Lang: ${wordLangCode}, Target Lang: ${targetLangCode}`);
+                console.log(`   Has Front (${wordLangCode}): ${hasFront}`);
+                console.log(`   Has Back (${targetLangCode}): ${hasBack}`);
+                console.log('   Card keys:', Object.keys(card));
+            }
+
+            return hasFront && hasBack;
         });
+
+        console.log('✅ Final filtered cards:', flashcards.length);
 
         if (!flashcards || flashcards.length === 0) {
             showError(i18n.getMessage('error_no_words'));
@@ -424,11 +449,15 @@ function showCard(index) {
         }
     });
 
-    // Update card content
-    const enText = card.en || '';
-    const ruText = card.ru || '';
-    document.getElementById('front-sentence').textContent = enText.replace(/_+/g, '______');
-    document.getElementById('back-sentence').textContent = ruText.replace(/_+/g, '______');
+    // Update card content - use dynamic keys based on word_language_code
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
+
+    const frontText = card[wordLangCode] || card.en || '';
+    const backText = card[targetLangCode] || card.ru || '';
+
+    document.getElementById('front-sentence').textContent = frontText.replace(/_+/g, '______');
+    document.getElementById('back-sentence').textContent = backText.replace(/_+/g, '______');
 
     // Dynamically determine language badges based on word_language
     const wordLang = card.word_language || 'English'; // Default to English if not specified
@@ -480,12 +509,20 @@ function showCard(index) {
     }
 
     // Render options with saved state
-    renderOptions('front-options', card.options_en || [], card.word, 'en');
-    renderOptions('back-options', card.options_ru || [], card.word, 'ru');
+    const frontOptionsKey = `options_${wordLangCode}`;
+    const backOptionsKey = `options_${targetLangCode}`;
+    const frontOptions = card[frontOptionsKey] || card.options_en || [];
+    const backOptions = card[backOptionsKey] || card.options_ru || [];
+    renderOptions('front-options', frontOptions, card.word, wordLangCode);
+    renderOptions('back-options', backOptions, card.word, targetLangCode);
 
     // Setup hint buttons (hide if already answered)
-    setupHintButton('front-hint-btn', card.hint_en || card.hint);
-    setupHintButton('back-hint-btn', card.hint_ru || card.hint);
+    const frontHintKey = `hint_${wordLangCode}`;
+    const backHintKey = `hint_${targetLangCode}`;
+    const frontHint = card[frontHintKey] || card.hint_en || card.hint;
+    const backHint = card[backHintKey] || card.hint_ru || card.hint;
+    setupHintButton('front-hint-btn', frontHint);
+    setupHintButton('back-hint-btn', backHint);
 
     if (frontAnswered) {
         document.getElementById('front-hint-btn')?.classList.add('hidden');
@@ -850,18 +887,24 @@ function showHint(hintText) {
 // Replace blanks for a specific side only
 function replaceBlanksForSide(side) {
     const card = flashcards[currentIndex];
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
 
     if (side === 'front') {
         const frontSentence = document.getElementById('front-sentence');
-        const correctAnswerEn = card.correct_answer_en || card.word;
-        const frontText = card.en;
-        const frontFilled = frontText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerEn}</strong>`);
+        const correctAnswerKey = `correct_answer_${wordLangCode}`;
+        const correctAnswerFront = card[correctAnswerKey] || card.correct_answer_en || card.word;
+        const sentenceKey = wordLangCode;
+        const frontText = card[sentenceKey] || card.en;
+        const frontFilled = frontText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerFront}</strong>`);
         frontSentence.innerHTML = frontFilled;
     } else {
         const backSentence = document.getElementById('back-sentence');
-        const correctAnswerRu = card.correct_answer_ru;
-        const backText = card.ru;
-        const backFilled = backText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerRu}</strong>`);
+        const correctAnswerKey = `correct_answer_${targetLangCode}`;
+        const correctAnswerBack = card[correctAnswerKey] || card.correct_answer_ru;
+        const sentenceKey = targetLangCode;
+        const backText = card[sentenceKey] || card.ru;
+        const backFilled = backText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerBack}</strong>`);
         backSentence.innerHTML = backFilled;
     }
 }
@@ -882,10 +925,11 @@ function showExplanationForSide(side) {
     feedbackMsg.classList.remove('hidden');
 
     // Show explanation in correct language for this side
-    const currentLang = side === 'front' ? 'en' : 'ru';
-    const explanation = currentLang === 'en'
-        ? (card.explanation_en || card.explanation || i18n.getMessage('no_explanation'))
-        : (card.explanation_ru || card.explanation || i18n.getMessage('no_explanation'));
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
+    const currentLangCode = side === 'front' ? wordLangCode : targetLangCode;
+    const explanationKey = `explanation_${currentLangCode}`;
+    const explanation = card[explanationKey] || card.explanation_en || card.explanation || i18n.getMessage('no_explanation');
 
     explanationText.textContent = explanation;
     explanationSection.classList.remove('hidden');

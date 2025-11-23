@@ -139,7 +139,10 @@ async function handleGenerateFlashcards() {
         let historyWords = [];
         if (includeHistory) {
             const historyResult = await chrome.storage.local.get(['wordHistory']);
-            historyWords = historyResult.wordHistory || [];
+            historyWords = (historyResult.wordHistory || []).map(word => ({
+                ...word,
+                category: 'History' // Mark as History
+            }));
             // Filter history by active categories too
             historyWords = historyWords.filter(word => {
                 const category = word.category || 'default';
@@ -148,6 +151,17 @@ async function handleGenerateFlashcards() {
         }
 
         let allWords = [...learningWords, ...historyWords];
+
+        // Remove duplicates - prioritize learning list
+        const seenWords = new Set();
+        allWords = allWords.filter(word => {
+            const key = word.word.toLowerCase();
+            if (seenWords.has(key)) {
+                return false;
+            }
+            seenWords.add(key);
+            return true;
+        });
 
         if (allWords.length === 0) {
             return { success: false, error: 'No words available. Add some words first or enable categories in the word list!' };
@@ -165,8 +179,12 @@ async function handleGenerateFlashcards() {
         let flashcards = await gemini.generateSimpleFlashcards(limitedWords, apiKey, model, language);
 
         // Map categories back to flashcards
+
         flashcards = flashcards.map(card => {
-            const originalWord = limitedWords.find(w => w.word.toLowerCase() === card.word.toLowerCase());
+            const originalWord = limitedWords.find(w => w.word.toLowerCase().trim() === card.word.toLowerCase().trim());
+
+
+
             return {
                 ...card,
                 category: originalWord ? (originalWord.category || 'default') : 'default'
@@ -193,31 +211,43 @@ async function handleGenerateContextCards() {
             return { success: false, error: 'API Key not set. Please configure in extension settings.' };
         }
 
-        // Get all learning words
         let learningWords = await storage.getLearningList();
 
-        // Filter by active categories
         const categorySettings = await storage.getCategorySettings();
         learningWords = learningWords.filter(word => {
             const category = word.category || 'default';
-            // Include word if category is active (default to true if not set)
             return categorySettings[category]?.active !== false;
         });
 
-        // Include history if enabled
         const includeHistory = result.flashcardsIncludeHistory !== false;
         let historyWords = [];
         if (includeHistory) {
             const historyResult = await chrome.storage.local.get(['wordHistory']);
-            historyWords = historyResult.wordHistory || [];
+            historyWords = (historyResult.wordHistory || []).map(word => ({
+                ...word,
+                category: 'History' // Mark as History
+            }));
+
             // Filter history by active categories too
             historyWords = historyWords.filter(word => {
                 const category = word.category || 'default';
                 return categorySettings[category]?.active !== false;
             });
+
         }
 
         let allWords = [...learningWords, ...historyWords];
+
+        // Remove duplicates - prioritize learning list
+        const seenWords = new Set();
+        allWords = allWords.filter(word => {
+            const key = word.word.toLowerCase();
+            if (seenWords.has(key)) {
+                return false;
+            }
+            seenWords.add(key);
+            return true;
+        });
 
         if (allWords.length === 0) {
             return { success: false, error: 'No words available. Add some words first or enable categories in the word list!' };
@@ -231,13 +261,24 @@ async function handleGenerateContextCards() {
         const model = result.geminiModel || 'gemini-2.0-flash';
         const language = result.appLanguage || getDefaultLanguage();
 
+
+        const wordsByCategory = {};
+        limitedWords.forEach(word => {
+            const cat = word.category || 'default';
+            if (!wordsByCategory[cat]) wordsByCategory[cat] = [];
+            wordsByCategory[cat].push(word.word);
+        });
+
         let flashcards = await gemini.generateFlashcards(limitedWords, [], apiKey, model, language);
+
+
 
         // Map categories back to flashcards
         flashcards = flashcards.map(card => {
-            // Note: generateFlashcards might return words in different case or slightly modified, 
-            // but usually it keeps the word field.
-            const originalWord = limitedWords.find(w => w.word.toLowerCase() === card.word.toLowerCase());
+            const originalWord = limitedWords.find(w => w.word.toLowerCase().trim() === card.word.toLowerCase().trim());
+
+
+
             return {
                 ...card,
                 category: originalWord ? (originalWord.category || 'default') : 'default'
@@ -301,7 +342,10 @@ async function handleGenerateDefinitionCards() {
         let historyWords = [];
         if (includeHistory) {
             const historyResult = await chrome.storage.local.get(['wordHistory']);
-            historyWords = historyResult.wordHistory || [];
+            historyWords = (historyResult.wordHistory || []).map(word => ({
+                ...word,
+                category: 'History' // Mark as History
+            }));
             // Filter history by active categories too
             historyWords = historyWords.filter(word => {
                 const category = word.category || 'default';
@@ -310,6 +354,17 @@ async function handleGenerateDefinitionCards() {
         }
 
         let allWords = [...learningWords, ...historyWords];
+
+        // Remove duplicates - prioritize learning list
+        const seenWords = new Set();
+        allWords = allWords.filter(word => {
+            const key = word.word.toLowerCase();
+            if (seenWords.has(key)) {
+                return false;
+            }
+            seenWords.add(key);
+            return true;
+        });
 
         if (allWords.length === 0) {
             return { success: false, error: 'No words available. Add some words first or enable categories in the word list!' };
@@ -327,7 +382,9 @@ async function handleGenerateDefinitionCards() {
 
         // Map categories back to cards
         cards = cards.map(card => {
-            const originalWord = limitedWords.find(w => w.word.toLowerCase() === card.word.toLowerCase());
+            const originalWord = limitedWords.find(w => w.word.toLowerCase().trim() === card.word.toLowerCase().trim());
+
+
             return {
                 ...card,
                 category: originalWord ? (originalWord.category || 'default') : 'default'
