@@ -112,11 +112,19 @@ export class GeminiService {
                     return false;
                 }
                 const name = m.name.toLowerCase();
+                const displayName = (m.displayName || '').toLowerCase();
                 return !name.includes('image') &&
                     !name.includes('imagen') &&
                     !name.includes('tts') &&
+                    !name.includes('nano') &&
                     !name.includes('computer-use') &&
-                    !name.includes('embedding');
+                    !name.includes('embedding') &&
+                    !displayName.includes('image') &&
+                    !displayName.includes('imagen') &&
+                    !displayName.includes('nano') &&
+                    !displayName.includes('tts') &&
+                    !displayName.includes('computer-use') &&
+                    !displayName.includes('embedding')&& !name.inc;
             })
             .map(m => ({
                 name: m.name.replace('models/', ''),
@@ -253,66 +261,94 @@ Return ONLY the JSON array, no explanations.
             uk: 'Ukrainian'
         };
         const targetLang = languageNames[language] || 'Russian';
+        const targetLangCode = language;
 
         const shuffledWords = words.sort(() => Math.random() - 0.5);
         const wordList = shuffledWords.map(w => w.word).join(', ');
 
         const prompt = `
-    Create simple translation flashcards for these words: ${wordList}
+    Create translation flashcards with examples for these words: ${wordList}
 
-    CRITICAL: For EACH word, you MUST:
-    1. FIRST detect what language the word is in (English, Russian, Ukrainian, Spanish, French, German, etc.)
-    2. Generate content based on the detected language:
-       - If word is in ENGLISH → translation should be in ${targetLang}, distractors_en should be English synonyms/related words
-       - If word is in ${targetLang} → translation should be in English, distractors_ru should be ${targetLang} synonyms/related words  
-       - If word is in ANY OTHER language → translation should be in ${targetLang}, distractors_en should be in the SAME language as the word
+    CRITICAL LANGUAGE DETECTION: For EACH word you receive, you MUST:
+    1. FIRST detect what language the word is in (could be English, Russian, Ukrainian, Spanish, French, German, Japanese, Chinese, ANY language!)
+    2. Determine the language CODE for that language (en, ru, uk, es, fr, de, ja, zh, etc.)
+    3. Generate content appropriately:
+       - If word is in ENGLISH → provide English examples and ${targetLang} translations
+       - If word is in ${targetLang} → provide ${targetLang} examples and English translations
+       - If word is in ANY OTHER language → provide examples in that language and ${targetLang} translations
+
+    IMPORTANT: NEVER assume all words are English! Detect each word's language individually.
 
     For each word, provide:
-    1. The word itself (in its ORIGINAL language - could be ANY language, not just English!)
-    2. Translation to ${targetLang} (if word is English/other) OR to English (if word is ${targetLang})
-    3. Phonetic transcription (IPA format) of the word in its ORIGINAL language
-    4. One natural example sentence using the word (in the word's ORIGINAL language)
-    5. Three distractors in the word's ORIGINAL language (distractors_en) - synonyms or related words
-    6. Three distractors in the OPPOSITE language (distractors_ru) - translations of the original language distractors
+    1. The word itself (in its ORIGINAL language - could be ANY language!)
+    2. **word_language**: Full language name (e.g., "English", "German", "Spanish")
+    3. **word_language_code**: 2-letter ISO code (e.g., "en", "de", "es")
+    4. Translation to ${targetLang} using key "word_${targetLangCode}"
+    5. Phonetic transcription (IPA format) of the ORIGINAL word
+    6. Three distractors in the word's ORIGINAL language using key "distractors_[WORD_LANG_CODE]"
+    7. Three distractors in ${targetLang} using key "distractors_${targetLangCode}"
+    8. 2-3 example sentences with blanks:
+       - Examples in ORIGINAL language using key "examples_[WORD_LANG_CODE]"
+       - Examples in ${targetLang} using key "examples_${targetLangCode}"
+    9. Explanation in both languages:
+       - Explanation in ORIGINAL language using key "explanation_[WORD_LANG_CODE]"
+       - Explanation in ${targetLang} using key "explanation_${targetLangCode}"
 
-    IMPORTANT RULES:
-    - distractors_en should ALWAYS be in the SAME language as the original word (e.g., if word is "привет" in Russian, distractors_en should be Russian words like "пока", "здравствуй", "до свидания")
-    - distractors_ru should be ${targetLang} translations of the distractors_en
-    - The field names stay "distractors_en" and "distractors_ru" regardless of the actual word language (this is just for backwards compatibility)
+    **EXAMPLE FOR ENGLISH WORD (when UI language is ${targetLang}):**
+    {
+      "word_language": "English",
+      "word_language_code": "en",
+      "word": "method",
+      "word_${targetLangCode}": "метод",
+      "transcription": "/ˈmeθəd/",
+      "distractors_en": ["approach", "system", "technique"],
+      "distractors_${targetLangCode}": ["подход", "система", "техника"],
+      "examples_en": [
+        { "text": "What's the best ____ of learning a new language?" },
+        { "text": "There needs to be a ____ to our madness." }
+      ],
+      "examples_${targetLangCode}": [
+        { "text": "Какой лучший ____ изучения нового языка?" },
+        { "text": "В нашем безумии должен быть ____." }
+      ],
+      "explanation_en": "The word 'method' means a particular way of doing something, especially a systematic or established one.",
+      "explanation_${targetLangCode}": "Слово 'метод' означает определенный способ выполнения чего-либо, особенно систематический или установленный."
+    }
 
-    Return ONLY a JSON array with this structure:
-    [
-      {
-        "word_language": "English",
-        "word": "adventure",
-        "translation": "приключение",
-        "transcription": "/ədˈventʃər/",
-        "example": "We risked losing a lot of money in this adventure.",
-        "distractors_en": ["experience", "journey", "challenge"],
-        "distractors_ru": ["опыт", "путешествие", "вызов"]
-      },
-      {
-        "word_language": "Russian",
-        "word": "привет",
-        "translation": "hello",
-        "transcription": "/prʲɪˈvʲet/",
-        "example": "Привет, как дела?",
-        "distractors_en": ["пока", "здравствуй", "до свидания"],
-        "distractors_ru": ["bye", "greetings", "goodbye"]
-      }
-    ]
+    **EXAMPLE FOR GERMAN WORD (when UI language is ${targetLang}):**
+    {
+      "word_language": "German",
+      "word_language_code": "de",
+      "word": "uns",
+      "word_${targetLangCode}": "нас, нам",
+      "transcription": "/ʊns/",
+      "distractors_de": ["mir", "dir", "ihm"],
+      "distractors_${targetLangCode}": ["мне", "тебе", "ему"],
+      "examples_de": [
+        { "text": "Er hat ____ im Park gesehen." },
+        { "text": "Sie gab ____ das Buch." }
+      ],
+      "examples_${targetLangCode}": [
+        { "text": "Он видел ____ в парке." },
+        { "text": "Она дала ____ книгу." }
+      ],
+      "explanation_de": "Das Wort 'uns' ist ein Personalpronomen im Akkusativ und Dativ, das 'wir' im Objektfall bedeutet.",
+      "explanation_${targetLangCode}": "Слово 'нас/нам' - это местоимение в винительном и дательном падежах, означающее 'мы' в объектном падеже."
+    }
+
+    IMPORTANT:
+    - Include "word_language_code" field with 2-letter ISO code
+    - Use dynamic keys: distractors_[DETECTED_LANG_CODE], examples_[DETECTED_LANG_CODE], explanation_[DETECTED_LANG_CODE]
+    - Always include ${targetLangCode} versions: word_${targetLangCode}, distractors_${targetLangCode}, examples_${targetLangCode}, explanation_${targetLangCode}
+    - Examples should be natural and practical IN BOTH LANGUAGES
+    - Replace the word with ____ in examples
+    - Distractors should be similar words that could be confused with the target word
+    - Explanation should clarify the meaning and usage
 
     CRITICAL JSON FORMATTING:
     - ALL field values MUST be valid JSON strings (in double quotes)
     - Transcription MUST be a quoted string like "/word/" NOT /word/ without quotes
     - Do NOT use unquoted values or regex-like syntax
-
-    VALIDATION:
-    - Include ALL words from the list
-    - NEVER assume all words are English - detect language for each word
-    - Distractors should be related but clearly different in meaning
-    - Example sentence should be practical and natural in the word's language
-    - Distractors should be single words or short phrases (max 3 words)
 
     Return ONLY the JSON array, no explanations.
     `;

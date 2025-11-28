@@ -163,7 +163,8 @@ export const translations = {
         popup_cancel_btn: "Cancel",
         popup_search_btn: "Search",
         popup_add_btn: "Add to Dictionary",
-        popup_add_word: "Add New Word"
+        popup_add_word: "Add New Word",
+        explanation_title: "Explanation"
     },
     ru: {
         extName: "AI Словарь Субтитров",
@@ -329,7 +330,8 @@ export const translations = {
         popup_cancel_btn: "Отмена",
         popup_search_btn: "Поиск",
         popup_add_btn: "Добавить в словарь",
-        popup_add_word: "Добавить новое слово"
+        popup_add_word: "Добавить новое слово",
+        explanation_title: "Объяснение"
     },
     uk: {
         extName: "AI Словник Субтитрів",
@@ -493,6 +495,7 @@ export const translations = {
         popup_cancel_btn: "Скасувати",
         popup_search_btn: "Пошук",
         popup_add_btn: "Додати до словника",
-        popup_add_word: "Додати нове слово"
+        popup_add_word: "Додати нове слово",
+        explanation_title: "Пояснення"
     }
 };

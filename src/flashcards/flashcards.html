@@ -12,7 +12,7 @@
         <div class="header">
             <h1 data-i18n="flashcards_title">Flashcards</h1>
             <div class="progress">
-                <span id="current-index">0</span> / <span id="total-count">0</span>
+                <span id="current-card">0</span> / <span id="total-cards">0</span>
             </div>
         </div>
 
@@ -31,52 +31,98 @@
         <!-- Main Card Area -->
         <div id="card-container" class="card-container hidden">
             <div class="card">
-                <div class="card-content" style="position: relative;">
+                <div class="card-content">
+                    <!-- Category Badge -->
                     <div class="category-badge" id="card-category" style="display:none;"></div>
 
-                    <!-- Mode Controls -->
-                    <div id="mode-controls-container" class="mode-controls"
-                        style="display: flex; justify-content: center; gap: 10px; margin-bottom: 16px;">
-                        <!-- Buttons injected by JS -->
+                    <!-- Language Badge -->
+                    <div class="language-badge" id="card-lang">EN</div>
+
+                    <!-- Translation (Question) -->
+                    <div class="card-header">
+                        <h2 id="card-translation" class="card-word">Translation</h2>
                     </div>
 
-                    <div class="word-display" id="card-front-text">Loading...</div>
-                    <div class="transcription" id="card-transcription"></div>
+                    <!-- Examples with blanks -->
+                    <div id="examples-container" class="examples-list">
+                        <!-- Examples will be injected here -->
+                    </div>
 
-                    <div class="input-area" id="input-area">
-                        <input type="text" id="answer-input" class="manual-input" autocomplete="off"
-                            data-i18n-placeholder="input_placeholder" placeholder="Type translation...">
-                        <div class="attempts-dots" id="attempts-dots">
-                            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    <!-- Interaction Area -->
+                    <div class="interaction-area">
+                        <!-- Mode Controls -->
+                        <div class="mode-controls">
+                            <button class="mode-btn" data-mode="options" data-i18n="mode_options">Options</button>
+                            <button class="mode-btn active" data-mode="manual" data-i18n="mode_manual">Manual</button>
                         </div>
-                        <button id="check-btn" class="action-btn" data-i18n="btn_check">Check</button>
+
+                        <!-- Manual Input Area -->
+                        <div class="input-area" id="input-area">
+                            <input type="text" id="answer-input" class="manual-input" autocomplete="off"
+                                data-i18n-placeholder="input_placeholder" placeholder="Type answer...">
+                            <button id="submit-btn" class="submit-btn" data-i18n="btn_check">Check</button>
+                        </div>
+
+                        <!-- Options Area -->
+                        <div class="options hidden" id="options-area">
+                            <!-- Options will be injected here -->
+                        </div>
                     </div>
 
-                    <div id="options-area" class="options-grid hidden">
-                        <!-- Options injected by JS -->
-                    </div>
-
+                    <!-- Feedback Area (shown after answer) -->
                     <div id="feedback-area" class="feedback-area hidden">
-                        <div id="correct-answer-display" class="correct-answer hidden"></div>
-                        <div id="example-display" class="example-box hidden">
-                            <div class="example-text" id="example-text"></div>
-                            <div class="example-translation" id="example-translation"></div>
+                        <!-- Transcription -->
+                        <div id="card-transcription" class="card-transcription"></div>
+
+                        <!-- Flippable Explanation -->
+                        <div id="explanation-container" class="explanation-container hidden">
+                            <div class="explanation-card" id="explanation-card">
+                                <div class="explanation-inner">
+                                    <!-- Front: Interface Language -->
+                                    <div class="explanation-face explanation-front">
+                                        <div class="explanation-lang-badge" id="explanation-front-lang">RU</div>
+                                        <div class="explanation-title" data-i18n="explanation_title">💡 Explanation:</div>
+                                        <div id="explanation-text-front" class="explanation-text"></div>
+                                        <div class="flip-hint-explanation" data-i18n="click_to_flip">Click to flip 🔄</div>
+                                    </div>
+                                    <!-- Back: Word Language -->
+                                    <div class="explanation-face explanation-back">
+                                        <div class="explanation-lang-badge" id="explanation-back-lang">EN</div>
+                                        <div class="explanation-title">💡 Explanation:</div>
+                                        <div id="explanation-text-back" class="explanation-text"></div>
+                                        <div class="flip-hint-explanation" data-i18n="click_to_flip">Click to flip 🔄</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="controls" id="controls">
-                <button id="idk-btn" class="control-btn secondary" data-i18n="flashcards_missed_it">Don't know</button>
-                <button id="next-btn" class="control-btn primary hidden" data-i18n="flashcards_next">Next</button>
+            <!-- Controls -->
+            <div class="controls">
+                <button id="prev-btn" class="control-btn secondary" data-i18n="def_cards_prev">← Previous</button>
+                <button id="next-btn" class="control-btn primary" data-i18n="def_cards_next">Next →</button>
             </div>
         </div>
 
-        <!-- Empty State -->
-        <div id="empty-state" class="empty-state hidden">
+        <!-- Complete Screen -->
+        <div id="complete-screen" class="complete-screen hidden">
             <div class="complete-icon">🎉</div>
-            <h2 data-i18n="flashcards_reviewed_all">All caught up!</h2>
-            <button id="close-btn" class="control-btn primary" data-i18n="flashcards_close">Close</button>
+            <h2 data-i18n="flashcards_complete">Great Job!</h2>
+            <p data-i18n="flashcards_complete_msg">You have completed all flashcards!</p>
+            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 32px;">
+                <button id="restart-btn" class="control-btn secondary" data-i18n="def_cards_restart">Restart</button>
+                <button id="close-btn" class="control-btn primary" data-i18n="flashcards_close">Close</button>
+            </div>
+        </div>
+
+        <!-- Error Screen -->
+        <div id="error-screen" class="error-screen hidden">
+            <div class="error-icon">⚠️</div>
+            <h2 data-i18n="error_title">Error</h2>
+            <p id="error-message"></p>
+            <button id="retry-btn" class="control-btn primary" data-i18n="retry">Try Again</button>
         </div>
     </div>
 
