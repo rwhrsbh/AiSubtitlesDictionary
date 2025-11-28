@@ -9,29 +9,108 @@ const storage = new StorageService();
 const i18n = new I18nService();
 const tts = new TTSService();
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
     console.log('AI Subtitles Extension Installed');
-    // Setup alarms for learning
-    chrome.alarms.create('learningReminder', { periodInMinutes: 60 }); // Check every hour
+
+    // Initialize default notification settings
+    const settings = await chrome.storage.local.get([
+        'notificationsEnabled',
+        'notificationFrequency'
+    ]);
+
+    // Set defaults if not configured
+    if (settings.notificationsEnabled === undefined) {
+        await chrome.storage.local.set({ notificationsEnabled: true });
+    }
+    if (!settings.notificationFrequency) {
+        await chrome.storage.local.set({ notificationFrequency: 240 }); // 4 hours default
+    }
+
+    // Setup alarm with configured frequency
+    setupNotificationAlarm();
 });
+
+async function setupNotificationAlarm() {
+    const settings = await chrome.storage.local.get('notificationFrequency');
+    const frequency = settings.notificationFrequency || 240; // Default 4 hours
+
+    // Clear existing alarm
+    chrome.alarms.clear('learningReminder');
+
+    // Create new alarm with configured frequency
+    chrome.alarms.create('learningReminder', { periodInMinutes: frequency });
+    console.log(`[Notifications] Alarm set to ${frequency} minutes`);
+}
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === 'learningReminder') {
-        const words = await storage.getWordsToReview();
-        if (words.length > 0) {
-            await i18n.init(); // Ensure correct language is loaded
-            chrome.notifications.create('review_notification', {
-                type: 'basic',
-                iconUrl: chrome.runtime.getURL('src/assets/icon.png'),
-                title: i18n.getMessage('notification_review_title'),
-                message: i18n.getMessage('notification_review_message').replace('%n', words.length),
-                priority: 1,
-                requireInteraction: true,
-                silent: false,
-            });
-        }
+        await checkAndSendNotification();
     }
 });
+
+async function checkAndSendNotification() {
+    // Get notification settings
+    const settings = await chrome.storage.local.get([
+        'notificationsEnabled',
+        'notificationQuietStart',
+        'notificationQuietEnd',
+        'notificationMinWords',
+        'notificationPriority',
+        'notificationRequireInteraction',
+        'notificationSound'
+    ]);
+
+    // Check if notifications are enabled
+    if (settings.notificationsEnabled === false) {
+        console.log('[Notifications] Disabled by user');
+        return;
+    }
+
+    // Check quiet hours
+    const now = new Date();
+    const currentHour = now.getHours();
+    const quietStart = settings.notificationQuietStart ?? 22; // Default 10 PM
+    const quietEnd = settings.notificationQuietEnd ?? 8; // Default 8 AM
+
+    // Handle quiet hours (can span midnight)
+    let isQuietTime = false;
+    if (quietStart > quietEnd) {
+        // Quiet hours span midnight (e.g., 22:00 to 08:00)
+        isQuietTime = currentHour >= quietStart || currentHour < quietEnd;
+    } else {
+        // Normal quiet hours (e.g., 01:00 to 06:00)
+        isQuietTime = currentHour >= quietStart && currentHour < quietEnd;
+    }
+
+    if (isQuietTime) {
+        console.log('[Notifications] Quiet hours - skipping notification');
+        return;
+    }
+
+    // Get words to review
+    const words = await storage.getWordsToReview();
+    const minWords = settings.notificationMinWords ?? 5; // Default 5 words
+
+    if (words.length < minWords) {
+        console.log(`[Notifications] Not enough words (${words.length} < ${minWords})`);
+        return;
+    }
+
+    // Send notification
+    await i18n.init(); // Ensure correct language is loaded
+
+    chrome.notifications.create('review_notification', {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('src/assets/icon.png'),
+        title: i18n.getMessage('notification_review_title'),
+        message: i18n.getMessage('notification_review_message').replace('%n', words.length),
+        priority: settings.notificationPriority ?? 0, // Default: low priority (0)
+        requireInteraction: settings.notificationRequireInteraction ?? false, // Default: auto-dismiss
+        silent: !(settings.notificationSound ?? true), // Default: sound enabled
+    });
+
+    console.log(`[Notifications] Sent notification for ${words.length} words`);
+}
 
 chrome.notifications.onClicked.addListener((notificationId) => {
     if (notificationId === 'review_notification') {
@@ -87,6 +166,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message.type === 'GENERATE_TTS_FOR_WORD_DATA') {
         handleGenerateTTSForWordData(message.wordData).then(sendResponse);
+        return true;
+    }
+    if (message.type === 'UPDATE_NOTIFICATION_ALARM') {
+        setupNotificationAlarm().then(() => sendResponse({ success: true }));
         return true;
     }
 });

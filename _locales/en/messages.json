@@ -340,5 +340,92 @@
     },
     "popup_add_btn": {
         "message": "Add to Dictionary"
+    },
+    "notification_settings": {
+        "message": "Notification Settings"
+    },
+    "settings_notifications_enabled": {
+        "message": "Enable review notifications"
+    },
+    "settings_notification_frequency": {
+        "message": "Check for reviews every (minutes)"
+    },
+    "settings_notification_frequency_hint": {
+        "message": "30 = half hour, 60 = 1 hour, 240 = 4 hours, 1440 = 24 hours"
+    },
+    "settings_notification_min_words": {
+        "message": "Minimum words to notify"
+    },
+    "settings_notification_min_words_hint": {
+        "message": "Only notify when this many words are ready for review"
+    },
+    "settings_notification_quiet_hours": {
+        "message": "Quiet hours (no notifications)"
+    },
+    "settings_notification_quiet_start": {
+        "message": "From"
+    },
+    "settings_notification_quiet_end": {
+        "message": "To"
+    },
+    "settings_notification_quiet_hours_hint": {
+        "message": "24-hour format (0-23). Example: 22 to 8 = 10 PM to 8 AM"
+    },
+    "settings_notification_sound": {
+        "message": "Play notification sound"
+    },
+    "settings_notification_require_interaction": {
+        "message": "Keep notification until dismissed"
+    },
+    "tts_settings": {
+        "message": "TTS (Speech) Settings"
+    },
+    "settings_tts_enabled": {
+        "message": "Enable TTS Pronunciation"
+    },
+    "settings_tts_auto_generate": {
+        "message": "Auto-generate speech when adding words"
+    },
+    "settings_tts_difficulty": {
+        "message": "Speaking Difficulty"
+    },
+    "settings_tts_voice": {
+        "message": "Voice Model"
+    },
+    "settings_limits": {
+        "message": "Word Limits"
+    },
+    "settings_tasks_limit": {
+        "message": "Review Tasks Limit (per session)"
+    },
+    "settings_simple_flashcards_words_limit": {
+        "message": "Simple Flashcards: Words Limit"
+    },
+    "settings_simple_flashcards_exercises_limit": {
+        "message": "Flashcards: Exercises Limit"
+    },
+    "settings_flashcards_words_limit": {
+        "message": "Context Cards: Words Limit"
+    },
+    "settings_flashcards_exercises_limit": {
+        "message": "Context Cards: Exercises Limit"
+    },
+    "settings_def_cards_words_limit": {
+        "message": "Definition Cards Words Limit"
+    },
+    "settings_def_cards_exercises_limit": {
+        "message": "Definition Cards Exercises Limit"
+    },
+    "settings_data_management": {
+        "message": "Data Management"
+    },
+    "settings_export": {
+        "message": "Export Data"
+    },
+    "settings_import": {
+        "message": "Import Data"
+    },
+    "settings_export_success": {
+        "message": "Exported!"
     }
 }

@@ -287,32 +287,49 @@ Return ONLY the JSON array, no explanations.
     5. Phonetic transcription (IPA format) of the ORIGINAL word
     6. Three distractors in the word's ORIGINAL language using key "distractors_[WORD_LANG_CODE]"
     7. Three distractors in ${targetLang} using key "distractors_${targetLangCode}"
-    8. 2-3 example sentences with blanks:
+    8. 2-3 FULL, DETAILED example sentences with blanks showing DIFFERENT CONTEXTS:
        - Examples in ORIGINAL language using key "examples_[WORD_LANG_CODE]"
        - Examples in ${targetLang} using key "examples_${targetLangCode}"
-    9. Explanation in both languages:
+       - CRITICAL RULES FOR EXAMPLES:
+         * Use COMPLETE, NATURAL sentences with full context (not short phrases)
+         * Show DIVERSE real-life situations and contexts
+         * If word has multiple parts of speech, show examples for EACH
+         * If word has multiple meanings, show examples for DIFFERENT meanings
+         * Examples should be rich in context to help understand usage
+       - GOOD EXAMPLES:
+         * "run" → "I try to ____ at least 5 kilometers every morning before work." (verb - exercise)
+         * "run" → "My father has been helping to ____ our family business for over 20 years." (verb - manage)
+         * "run" → "After a long ____ in the park, I felt completely refreshed and energized." (noun - activity)
+       - BAD EXAMPLES (too short, no context):
+         * "I ____" ❌
+         * "Let's ____" ❌
+         * "She ____ it" ❌
+    9. Explanation in both languages mentioning ALL possible uses:
        - Explanation in ORIGINAL language using key "explanation_[WORD_LANG_CODE]"
        - Explanation in ${targetLang} using key "explanation_${targetLangCode}"
+       - Include information about different parts of speech, different meanings, and common contexts
 
     **EXAMPLE FOR ENGLISH WORD (when UI language is ${targetLang}):**
     {
       "word_language": "English",
       "word_language_code": "en",
-      "word": "method",
-      "word_${targetLangCode}": "метод",
-      "transcription": "/ˈmeθəd/",
-      "distractors_en": ["approach", "system", "technique"],
-      "distractors_${targetLangCode}": ["подход", "система", "техника"],
+      "word": "run",
+      "word_${targetLangCode}": "бегать, бежать, управлять",
+      "transcription": "/rʌn/",
+      "distractors_en": ["walk", "jog", "sprint"],
+      "distractors_${targetLangCode}": ["ходить", "бегать трусцой", "спринт"],
       "examples_en": [
-        { "text": "What's the best ____ of learning a new language?" },
-        { "text": "There needs to be a ____ to our madness." }
+        { "text": "I try to ____ at least 5 kilometers every morning before I start my workday, because it helps me stay healthy and energized." },
+        { "text": "My father has been helping to ____ our family business for over 20 years, and he taught me everything I know about managing a company." },
+        { "text": "After a long ____ in the park with my dog, I always feel completely refreshed and ready to tackle any challenges that come my way." }
       ],
       "examples_${targetLangCode}": [
-        { "text": "Какой лучший ____ изучения нового языка?" },
-        { "text": "В нашем безумии должен быть ____." }
+        { "text": "Я стараюсь ____ не менее 5 километров каждое утро перед началом рабочего дня, потому что это помогает мне оставаться здоровым и энергичным." },
+        { "text": "Мой отец помогает ____ нашим семейным бизнесом уже более 20 лет, и он научил меня всему, что я знаю об управлении компанией." },
+        { "text": "После долгой ____ в парке с моей собакой я всегда чувствую себя полностью обновленным и готовым справиться с любыми трудностями." }
       ],
-      "explanation_en": "The word 'method' means a particular way of doing something, especially a systematic or established one.",
-      "explanation_${targetLangCode}": "Слово 'метод' означает определенный способ выполнения чего-либо, особенно систематический или установленный."
+      "explanation_en": "The word 'run' can be used as a VERB meaning 'to move quickly on foot' (физическая активность), 'to manage or operate' (управление бизнесом), or as a NOUN meaning 'an act of running' (пробежка как событие). It shows completely different meanings depending on context.",
+      "explanation_${targetLangCode}": "Слово 'run' может использоваться как ГЛАГОЛ со значением 'быстро двигаться' (физическая активность), 'управлять' (бизнесом), или как СУЩЕСТВИТЕЛЬНОЕ со значением 'пробежка' (как событие). Оно имеет совершенно разные значения в зависимости от контекста."
     }
 
     **EXAMPLE FOR GERMAN WORD (when UI language is ${targetLang}):**
@@ -325,15 +342,17 @@ Return ONLY the JSON array, no explanations.
       "distractors_de": ["mir", "dir", "ihm"],
       "distractors_${targetLangCode}": ["мне", "тебе", "ему"],
       "examples_de": [
-        { "text": "Er hat ____ im Park gesehen." },
-        { "text": "Sie gab ____ das Buch." }
+        { "text": "Mein alter Freund aus der Schule hat ____ gestern zufällig im Park gesehen und war sehr überrascht, uns nach so vielen Jahren wiederzutreffen." },
+        { "text": "Die freundliche Bibliothekarin gab ____ das seltene Buch, das wir seit Wochen gesucht hatten, und erklärte uns ausführlich die Ausleihbedingungen." },
+        { "text": "Der Professor hat ____ während der Vorlesung mehrmals gelobt, weil wir die schwierige Aufgabe als einzige Gruppe richtig gelöst hatten." }
       ],
       "examples_${targetLangCode}": [
-        { "text": "Он видел ____ в парке." },
-        { "text": "Она дала ____ книгу." }
+        { "text": "Мой старый друг из школы случайно увидел ____ вчера в парке и был очень удивлен встрече с нами после стольких лет." },
+        { "text": "Дружелюбная библиотекарь дала ____ редкую книгу, которую мы искали несколько недель, и подробно объяснила нам условия выдачи." },
+        { "text": "Профессор несколько раз хвалил ____ во время лекции, потому что мы были единственной группой, которая правильно решила сложную задачу." }
       ],
-      "explanation_de": "Das Wort 'uns' ist ein Personalpronomen im Akkusativ und Dativ, das 'wir' im Objektfall bedeutet.",
-      "explanation_${targetLangCode}": "Слово 'нас/нам' - это местоимение в винительном и дательном падежах, означающее 'мы' в объектном падеже."
+      "explanation_de": "Das Wort 'uns' ist ein Personalpronomen der 1. Person Plural im Akkusativ und Dativ, das 'wir' im Objektfall bedeutet. Es kann sowohl als AKKUSATIVOBJEKT (wen? - uns sehen) als auch als DATIVOBJEKT (wem? - uns geben) verwendet werden.",
+      "explanation_${targetLangCode}": "Слово 'uns' (нас/нам) - это личное местоимение 1-го лица множественного числа в винительном и дательном падежах. Может использоваться как ПРЯМОЕ ДОПОЛНЕНИЕ (кого? - видеть нас) и как КОСВЕННОЕ ДОПОЛНЕНИЕ (кому? - давать нам)."
     }
 
     IMPORTANT:
@@ -433,7 +452,21 @@ Return ONLY the JSON array, no explanations.
            - Explanation in ${targetLang} using key "meaning_${targetLangCode}"
            - Examples in ORIGINAL language using key "examples_[WORD_LANG_CODE]"
            - Examples in ${targetLang} using key "examples_${targetLangCode}"
-        
+
+        CRITICAL RULES FOR EXAMPLES:
+        - Use COMPLETE, NATURAL, DETAILED sentences with full context (NOT short phrases!)
+        - Examples should be rich in context to help understand real-world usage
+        - Show DIVERSE situations and contexts
+        - GOOD: "The government decided to ____ humanitarian aid to the conflict zone, despite international pressure to provide assistance."
+        - BAD: "They ____ food." ❌ (too short, no context)
+
+        CRITICAL: SHOW ALL PARTS OF SPEECH:
+        - If a word can be MULTIPLE parts of speech (noun, verb, adjective, etc.), create SEPARATE definitions for EACH
+        - Example: "run" → definition 1 as VERB ("to move quickly"), definition 2 as VERB ("to manage"), definition 3 as NOUN ("an act of running")
+        - Example: "glue" → definition 1 as NOUN ("adhesive substance"), definition 2 as VERB ("to stick together")
+        - Example: "light" → definition 1 as NOUN ("illumination"), definition 2 as VERB ("to ignite"), definition 3 as ADJECTIVE ("not heavy")
+        - Each definition should clearly show the part of speech and context
+
         SPECIAL RULES FOR VERBS:
         - If a verb ALWAYS uses the same preposition (e.g., "depend on"), show ONE example with that preposition
         - If a verb can use DIFFERENT prepositions with different meanings (e.g., "argue with someone" vs "argue against something"), show MULTIPLE examples demonstrating each usage
@@ -450,17 +483,33 @@ Return ONLY the JSON array, no explanations.
           "distractors_${targetLangCode}": ["принимать", "разрешать", "подтверждать"],
           "definitions": [
             {
-              "meaning_en": "to not allow someone to have or do something",
-              "meaning_${targetLangCode}": "не разрешать кому-либо иметь или делать что-либо",
+              "meaning_en": "to refuse to give someone something they want or need",
+              "meaning_${targetLangCode}": "отказывать кому-либо в чем-то, что им нужно или хочется",
               "examples_en": [
                 {
-                  "text": "They ____ food to the prisoners.",
+                  "text": "The government decided to ____ humanitarian aid to the conflict zone, despite international pressure to provide assistance to the suffering population.",
                   "preposition": null
                 }
               ],
               "examples_${targetLangCode}": [
                 {
-                  "text": "Они ____ еду заключенным.",
+                  "text": "Правительство решило ____ гуманитарную помощь зоне конфликта, несмотря на международное давление оказать помощь страдающему населению.",
+                  "preposition": null
+                }
+              ]
+            },
+            {
+              "meaning_en": "to say that something is not true or that you did not do something",
+              "meaning_${targetLangCode}": "отрицать что-то или утверждать, что вы чего-то не делали",
+              "examples_en": [
+                {
+                  "text": "The suspect continued to ____ any involvement in the crime, even though the evidence strongly suggested otherwise.",
+                  "preposition": null
+                }
+              ],
+              "examples_${targetLangCode}": [
+                {
+                  "text": "Подозреваемый продолжал ____ какую-либо причастность к преступлению, хотя улики явно свидетельствовали об обратном.",
                   "preposition": null
                 }
               ]
@@ -479,17 +528,49 @@ Return ONLY the JSON array, no explanations.
           "distractors_${targetLangCode}": ["мне", "тебе", "ему"],
           "definitions": [
             {
-              "meaning_de": "Akkusativ des Personalpronomens 'wir', bedeutet 'uns'",
-              "meaning_${targetLangCode}": "Винительный падеж местоимения 'мы', означает 'нас'",
+              "meaning_de": "Akkusativ des Personalpronomens 'wir' - bezeichnet eine Gruppe, zu der der Sprecher gehört, als direktes Objekt einer Handlung",
+              "meaning_${targetLangCode}": "Винительный падеж местоимения 'мы' - обозначает группу, к которой принадлежит говорящий, как прямое дополнение действия",
               "examples_de": [
                 {
-                  "text": "Er hat ____ im Park gesehen.",
+                  "text": "Mein alter Freund aus der Schule hat ____ gestern zufällig im Park gesehen und war sehr überrascht, uns nach so vielen Jahren wiederzutreffen.",
+                  "preposition": null
+                },
+                {
+                  "text": "Der freundliche Nachbar hat ____ letzte Woche zum Grillen eingeladen und wir hatten einen wunderbaren Abend mit köstlichem Essen und interessanten Gesprächen.",
                   "preposition": null
                 }
               ],
               "examples_${targetLangCode}": [
                 {
-                  "text": "Он видел ____ в парке.",
+                  "text": "Мой старый друг из школы случайно увидел ____ вчера в парке и был очень удивлен встрече с нами после стольких лет.",
+                  "preposition": null
+                },
+                {
+                  "text": "Дружелюбный сосед пригласил ____ на барбекю на прошлой неделе, и мы провели прекрасный вечер с вкусной едой и интересными разговорами.",
+                  "preposition": null
+                }
+              ]
+            },
+            {
+              "meaning_de": "Dativ des Personalpronomens 'wir' - bezeichnet eine Gruppe als indirektes Objekt, dem etwas gegeben oder gesagt wird",
+              "meaning_${targetLangCode}": "Дательный падеж местоимения 'мы' - обозначает группу как косвенное дополнение, которому что-то дают или говорят",
+              "examples_de": [
+                {
+                  "text": "Die freundliche Bibliothekarin gab ____ das seltene Buch, das wir seit Wochen gesucht hatten, und erklärte uns ausführlich die Ausleihbedingungen.",
+                  "preposition": null
+                },
+                {
+                  "text": "Der Professor hat ____ während der Vorlesung mehrmals gelobt, weil wir die schwierige Aufgabe als einzige Gruppe richtig gelöst hatten.",
+                  "preposition": null
+                }
+              ],
+              "examples_${targetLangCode}": [
+                {
+                  "text": "Дружелюбная библиотекарь дала ____ редкую книгу, которую мы искали несколько недель, и подробно объяснила нам условия выдачи.",
+                  "preposition": null
+                },
+                {
+                  "text": "Профессор несколько раз хвалил ____ во время лекции, потому что мы были единственной группой, которая правильно решила сложную задачу.",
                   "preposition": null
                 }
               ]

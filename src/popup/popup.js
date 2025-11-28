@@ -77,7 +77,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         'simple-flashcards-words-limit', 'simple-flashcards-exercises-limit',
         'flashcards-words-limit', 'flashcards-exercises-limit',
         'def-cards-words-limit', 'def-cards-exercises-limit',
-        'tts-enabled', 'tts-auto-generate', 'tts-difficulty', 'tts-voice'
+        'tts-enabled', 'tts-auto-generate', 'tts-difficulty', 'tts-voice',
+        'notifications-enabled', 'notification-frequency', 'notification-min-words',
+        'notification-quiet-start', 'notification-quiet-end',
+        'notification-sound', 'notification-require-interaction'
     ];
 
     settingsInputs.forEach(id => {
@@ -89,6 +92,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     });
+
+    // Special handling for notification frequency - update alarm when changed
+    const notificationFrequencyInput = document.getElementById('notification-frequency');
+    if (notificationFrequencyInput) {
+        notificationFrequencyInput.addEventListener('change', async () => {
+            await autoSaveSettings();
+            // Notify background to update alarm
+            chrome.runtime.sendMessage({ type: 'UPDATE_NOTIFICATION_ALARM' });
+        });
+    }
+
+    // Special handling for notifications enabled - toggle details visibility
+    const notificationsEnabledCheckbox = document.getElementById('notifications-enabled');
+    const notificationDetails = document.getElementById('notification-details');
+    if (notificationsEnabledCheckbox && notificationDetails) {
+        notificationsEnabledCheckbox.addEventListener('change', () => {
+            notificationDetails.style.display = notificationsEnabledCheckbox.checked ? 'block' : 'none';
+        });
+    }
 
     // Special handling for quiz types to ensure at least one is selected
     const quizInputs = ['quiz-translation', 'quiz-transcription'];
@@ -959,7 +981,14 @@ async function loadSettings() {
         'ttsEnabled',
         'ttsAutoGenerate',
         'ttsDifficulty',
-        'ttsVoice'
+        'ttsVoice',
+        'notificationsEnabled',
+        'notificationFrequency',
+        'notificationMinWords',
+        'notificationQuietStart',
+        'notificationQuietEnd',
+        'notificationSound',
+        'notificationRequireInteraction'
     ]);
 
     console.log('[Popup] Loaded settings:', settings);
@@ -988,6 +1017,21 @@ async function loadSettings() {
     document.getElementById('tts-auto-generate').checked = settings.ttsAutoGenerate !== false;
     document.getElementById('tts-difficulty').value = settings.ttsDifficulty || 'B2';
     document.getElementById('tts-voice').value = settings.ttsVoice || 'Zephyr';
+
+    // Load notification settings
+    document.getElementById('notifications-enabled').checked = settings.notificationsEnabled !== false;
+    document.getElementById('notification-frequency').value = settings.notificationFrequency || 240;
+    document.getElementById('notification-min-words').value = settings.notificationMinWords ?? 5;
+    document.getElementById('notification-quiet-start').value = settings.notificationQuietStart ?? 22;
+    document.getElementById('notification-quiet-end').value = settings.notificationQuietEnd ?? 8;
+    document.getElementById('notification-sound').checked = settings.notificationSound !== false;
+    document.getElementById('notification-require-interaction').checked = settings.notificationRequireInteraction === true;
+
+    // Toggle notification details visibility based on enabled state
+    const notificationDetails = document.getElementById('notification-details');
+    if (notificationDetails) {
+        notificationDetails.style.display = settings.notificationsEnabled !== false ? 'block' : 'none';
+    }
 
     // Load word limits
     document.getElementById('tasks-limit').value = settings.tasksLimit || 20;
@@ -1072,6 +1116,15 @@ async function autoSaveSettings() {
     const ttsDifficulty = document.getElementById('tts-difficulty').value;
     const ttsVoice = document.getElementById('tts-voice').value;
 
+    // Get notification settings
+    const notificationsEnabled = document.getElementById('notifications-enabled').checked;
+    const notificationFrequency = parseInt(document.getElementById('notification-frequency').value) || 240;
+    const notificationMinWords = parseInt(document.getElementById('notification-min-words').value) ?? 5;
+    const notificationQuietStart = parseInt(document.getElementById('notification-quiet-start').value) ?? 22;
+    const notificationQuietEnd = parseInt(document.getElementById('notification-quiet-end').value) ?? 8;
+    const notificationSound = document.getElementById('notification-sound').checked;
+    const notificationRequireInteraction = document.getElementById('notification-require-interaction').checked;
+
     if (!quizTranslation && !quizTranscription) {
         // Don't save invalid state, maybe show toast?
         return;
@@ -1102,7 +1155,14 @@ async function autoSaveSettings() {
         ttsEnabled: ttsEnabled,
         ttsAutoGenerate: ttsAutoGenerate,
         ttsDifficulty: ttsDifficulty,
-        ttsVoice: ttsVoice
+        ttsVoice: ttsVoice,
+        notificationsEnabled: notificationsEnabled,
+        notificationFrequency: notificationFrequency,
+        notificationMinWords: notificationMinWords,
+        notificationQuietStart: notificationQuietStart,
+        notificationQuietEnd: notificationQuietEnd,
+        notificationSound: notificationSound,
+        notificationRequireInteraction: notificationRequireInteraction
     });
 
     // Update i18n if language changed

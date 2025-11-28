@@ -172,6 +172,66 @@
         </div>
 
         <div class="form-group">
+            <label data-i18n="notification_settings">Notification Settings</label>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="notifications-enabled" checked>
+                    <span data-i18n="settings_notifications_enabled">Enable review notifications</span>
+                </label>
+            </div>
+            <div id="notification-details">
+                <div style="margin-top: 12px;">
+                    <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                        data-i18n="settings_notification_frequency">Check for reviews every (minutes)</label>
+                    <input type="number" id="notification-frequency" min="30" max="1440" value="240" step="30"
+                        style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                    <div style="font-size: 11px; color: #888; margin-top: 4px;" data-i18n="settings_notification_frequency_hint">
+                        30 = half hour, 60 = 1 hour, 240 = 4 hours, 1440 = 24 hours
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"
+                        data-i18n="settings_notification_min_words">Minimum words to notify</label>
+                    <input type="number" id="notification-min-words" min="1" max="50" value="5"
+                        style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                    <div style="font-size: 11px; color: #888; margin-top: 4px;" data-i18n="settings_notification_min_words_hint">
+                        Only notify when this many words are ready for review
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <label style="font-size: 13px; color: #666; display: block; margin-bottom: 8px;"
+                        data-i18n="settings_notification_quiet_hours">Quiet hours (no notifications)</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px; color: #888; display: block; margin-bottom: 2px;" data-i18n="settings_notification_quiet_start">From</label>
+                            <input type="number" id="notification-quiet-start" min="0" max="23" value="22"
+                                style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px;">
+                        </div>
+                        <span style="margin-top: 18px;">-</span>
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px; color: #888; display: block; margin-bottom: 2px;" data-i18n="settings_notification_quiet_end">To</label>
+                            <input type="number" id="notification-quiet-end" min="0" max="23" value="8"
+                                style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px;">
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: #888; margin-top: 4px;" data-i18n="settings_notification_quiet_hours_hint">
+                        24-hour format (0-23). Example: 22 to 8 = 10 PM to 8 AM
+                    </div>
+                </div>
+                <div class="checkbox-group" style="margin-top: 12px;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="notification-sound" checked>
+                        <span data-i18n="settings_notification_sound">Play notification sound</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="notification-require-interaction">
+                        <span data-i18n="settings_notification_require_interaction">Keep notification until dismissed</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
             <label data-i18n="settings_limits">Word Limits</label>
             <div style="margin-top: 8px;">
                 <label style="font-size: 13px; color: #666; display: block; margin-bottom: 4px;"

@@ -136,11 +136,14 @@ function handleManualResult(result, input, correctAnswer) {
 
     if (result.exact) {
         input.classList.add('correct');
+        cardStates[currentIndex].inputValue = correctAnswer;
     } else if (result.match) {
         input.classList.add('close');
+        cardStates[currentIndex].inputValue = input.value;
         requeueCard();
     } else {
         input.classList.add('wrong');
+        cardStates[currentIndex].inputValue = input.value;
         input.value += ` (${correctAnswer})`;
     }
 
@@ -203,14 +206,6 @@ function showFeedback(card) {
     const explanationWord = card[explanationWordKey] || '';
 
     if (explanationTarget || explanationWord) {
-        // Front: Interface language (target language)
-        document.getElementById('explanation-text-front').textContent = explanationTarget;
-        document.getElementById('explanation-front-lang').textContent = targetLangCode.toUpperCase();
-
-        // Back: Word language
-        document.getElementById('explanation-text-back').textContent = explanationWord;
-        document.getElementById('explanation-back-lang').textContent = wordLangCode.toUpperCase();
-
         // Setup flip functionality
         const explanationCard = document.getElementById('explanation-card');
         explanationCard.classList.remove('flipped');
@@ -219,8 +214,18 @@ function showFeedback(card) {
         const newExplanationCard = explanationCard.cloneNode(true);
         explanationCard.parentNode.replaceChild(newExplanationCard, explanationCard);
 
-        newExplanationCard.addEventListener('click', () => {
-            newExplanationCard.classList.toggle('flipped');
+        // Set text AFTER replacing the element
+        // Front: Interface language (target language)
+        document.getElementById('explanation-text-front').textContent = explanationTarget;
+        document.getElementById('explanation-front-lang').textContent = targetLangCode.toUpperCase();
+
+        // Back: Word language
+        document.getElementById('explanation-text-back').textContent = explanationWord;
+        document.getElementById('explanation-back-lang').textContent = wordLangCode.toUpperCase();
+
+        // Add click listener to the NEW element
+        document.getElementById('explanation-card').addEventListener('click', () => {
+            document.getElementById('explanation-card').classList.toggle('flipped');
         });
 
         document.getElementById('explanation-container').classList.remove('hidden');
