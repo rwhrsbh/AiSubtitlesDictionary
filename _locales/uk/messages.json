@@ -335,6 +335,42 @@
     "popup_add_word": {
         "message": "Додати нове слово"
     },
+    "notification_settings": {
+        "message": "Налаштування сповіщень"
+    },
+    "settings_notifications_enabled": {
+        "message": "Увімкнути сповіщення про повторення"
+    },
+    "settings_notification_frequency": {
+        "message": "Перевіряти необхідність повторення кожні (хвилин)"
+    },
+    "settings_notification_frequency_hint": {
+        "message": "30 = півгодини, 60 = 1 година, 240 = 4 години, 1440 = 24 години"
+    },
+    "settings_notification_min_words": {
+        "message": "Мінімум слів для сповіщення"
+    },
+    "settings_notification_min_words_hint": {
+        "message": "Сповіщати тільки якщо готово щонайменше стільки слів для повторення"
+    },
+    "settings_notification_quiet_hours": {
+        "message": "Тихі години (без сповіщень)"
+    },
+    "settings_notification_quiet_start": {
+        "message": "З"
+    },
+    "settings_notification_quiet_end": {
+        "message": "До"
+    },
+    "settings_notification_quiet_hours_hint": {
+        "message": "24-годинний формат (0-23). Приклад: 22 до 8 = з 22:00 до 8:00"
+    },
+    "settings_notification_sound": {
+        "message": "Відтворювати звук сповіщення"
+    },
+    "settings_notification_require_interaction": {
+        "message": "Тримати сповіщення, доки не буде закрито"
+    },
     "popup_add_btn": {
         "message": "Додати до словника"
     }

@@ -383,6 +383,42 @@
     "popup_add_word": {
         "message": "Добавить новое слово"
     },
+    "notification_settings": {
+        "message": "Настройки уведомлений"
+    },
+    "settings_notifications_enabled": {
+        "message": "Включить уведомления о повторении"
+    },
+    "settings_notification_frequency": {
+        "message": "Проверять необходимость повторения каждые (минут)"
+    },
+    "settings_notification_frequency_hint": {
+        "message": "30 = полчаса, 60 = 1 час, 240 = 4 часа, 1440 = 24 часа"
+    },
+    "settings_notification_min_words": {
+        "message": "Минимум слов для уведомления"
+    },
+    "settings_notification_min_words_hint": {
+        "message": "Уведомлять только если готово минимум столько слов"
+    },
+    "settings_notification_quiet_hours": {
+        "message": "Тихие часы (без уведомлений)"
+    },
+    "settings_notification_quiet_start": {
+        "message": "С"
+    },
+    "settings_notification_quiet_end": {
+        "message": "До"
+    },
+    "settings_notification_quiet_hours_hint": {
+        "message": "24-часовой формат (0-23). Пример: 22 до 8 = с 22:00 до 8:00"
+    },
+    "settings_notification_sound": {
+        "message": "Воспроизводить звук уведомления"
+    },
+    "settings_notification_require_interaction": {
+        "message": "Оставлять уведомление до закрытия"
+    },
     "popup_add_btn": {
         "message": "Добавить в словарь"
     }
