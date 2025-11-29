@@ -4,7 +4,7 @@ A Chrome Extension that helps you learn languages while watching YouTube. Click 
 
 ## Features
 
-*   **Instant Translation**: Click on any word in YouTube subtitles to see its translation and definition.
+*   **Instant Translation**: Click on any word in YouTube or Rezka.ag subtitles to see its translation and definition.
 *   **AI-Powered**: Uses Google Gemini to provide context-aware explanations and examples.
 *   **Smart Dictionary**: Save words to your personal dictionary with one click.
 *   **Spaced Repetition (SRS)**: Built-in review system to help you memorize words efficiently.
@@ -16,11 +16,23 @@ A Chrome Extension that helps you learn languages while watching YouTube. Click 
 ## Installation
 
 1.  Clone this repository.
-2.  Open Chrome and go to `chrome://extensions/`.
-3.  Enable "Developer mode" in the top right.
-4.  Click "Load unpacked" and select the extension directory.
-5.  Get a free API Key from [Google AI Studio](https://aistudio.google.com/).
-6.  Open the extension popup, go to Settings, and enter your API Key.
+2.  Navigate to the project directory:
+    
+    `cd AiSubtitlesDictionary`
+
+3.  Install dependencies:
+
+    `npm install`
+
+4.  Build the project:
+
+    `npm run build`
+
+6.  Open Chrome and go to `chrome://extensions/`.
+7.  Enable "Developer mode" in the top right.
+8.  Click "Load unpacked" and select the `dist` folder.
+9.  Get a free API Key from [Google AI Studio](https://aistudio.google.com/).
+10.  Open the extension popup, go to Settings, and enter your API Key.
 
 ## License
 
