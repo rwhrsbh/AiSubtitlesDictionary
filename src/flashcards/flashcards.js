@@ -119,9 +119,15 @@ function handleSubmit() {
     if (!value) return;
 
     const card = cards[currentIndex];
-    const matchResult = isCloseMatch(value, card.word);
 
-    handleManualResult(matchResult, input, card.word);
+    // Use AI-generated correct answer based on language
+    const wordLangCode = card.word_language_code || 'en';
+    const correctAnswerKey = `word_${wordLangCode}`;
+    const correctAnswer = card[correctAnswerKey] || card.word;
+
+    const matchResult = isCloseMatch(value, correctAnswer);
+
+    handleManualResult(matchResult, input, correctAnswer);
 }
 
 function handleManualResult(result, input, correctAnswer) {
@@ -241,11 +247,16 @@ function replaceBlanksWithAnswer() {
     const container = document.getElementById('examples-container');
     if (!container || !examples || examples.length === 0) return;
 
+    // Use AI-generated correct answer based on language
+    const correctAnswerKey = `word_${wordLangCode}`;
+    const correctAnswer = card[correctAnswerKey] || card.word;
+
     container.innerHTML = '';
     examples.forEach(example => {
         const div = document.createElement('div');
         div.className = 'example-item';
-        const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${card.word}</strong>`);
+        // Replace all consecutive underscores (2 or more) with the answer
+        const filled = example.text.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswer}</strong>`);
         div.innerHTML = filled;
         container.appendChild(div);
     });
@@ -409,7 +420,12 @@ function showCard(index) {
     const wordLangCodeForDistractors = card.word_language_code || 'en';
     const distractorsKey = `distractors_${wordLangCodeForDistractors}`;
     const distractors = card[distractorsKey] || card.distractors_en || [];
-    renderOptions(distractors, card.word, answered, correct);
+
+    // Get correct answer for this language
+    const correctAnswerKey = `word_${wordLangCodeForDistractors}`;
+    const correctAnswer = card[correctAnswerKey] || card.word;
+
+    renderOptions(distractors, correctAnswer, answered, correct);
 
     // Update button states
     prevBtn.disabled = index === 0;
@@ -431,16 +447,23 @@ function renderExamples(card) {
     examples.forEach(example => {
         const div = document.createElement('div');
         div.className = 'example-item';
-        div.innerHTML = example.text.replace(/____/g, '<span class="example-blank">____</span>');
+        // Replace all consecutive underscores (2 or more) with blank spans
+        div.innerHTML = example.text.replace(/_{2,}/g, '<span class="example-blank">____</span>');
         container.appendChild(div);
     });
 }
 
-function renderOptions(distractors, correctAnswer, answered, correct) {
+function renderOptions(distractors, correctAnswerFromParam, answered, correct) {
     const container = document.getElementById('options-area');
     container.innerHTML = '';
 
     if (!distractors || distractors.length === 0) return;
+
+    // Use AI-generated correct answer based on language
+    const card = cards[currentIndex];
+    const wordLangCode = card.word_language_code || 'en';
+    const correctAnswerKey = `word_${wordLangCode}`;
+    const correctAnswer = card[correctAnswerKey] || card.word;
 
     const options = [...distractors, correctAnswer].sort(() => Math.random() - 0.5);
 

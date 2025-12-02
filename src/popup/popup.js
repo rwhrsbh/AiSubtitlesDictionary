@@ -410,6 +410,18 @@ async function renderCategories(categories, words) {
                     await generateWordTTS(wordId, word);
                 }
             });
+
+            // Right-click to regenerate TTS
+            btn.addEventListener('contextmenu', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const wordId = btn.dataset.wordId;
+                const word = btn.dataset.word;
+
+                if (confirm(`Regenerate pronunciation for "${word}"?`)) {
+                    await regenerateWordTTS(wordId, word);
+                }
+            });
         });
 
         // Word Detail Listeners
@@ -563,6 +575,40 @@ async function generateWordTTS(wordId, word) {
     }
 }
 
+async function regenerateWordTTS(wordId, word) {
+    try {
+        const btn = document.querySelector(`.tts-btn-small[data-word-id="${wordId}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳';
+        }
+
+        const response = await chrome.runtime.sendMessage({
+            type: 'REGENERATE_TTS',
+            wordId: wordId,
+            word: word
+        });
+
+        if (response.success) {
+            // Reload to show updated button
+            await loadWordsTab();
+        } else {
+            alert('Error regenerating speech: ' + response.error);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔊';
+            }
+        }
+    } catch (error) {
+        console.error('Error regenerating TTS:', error);
+        alert('Error regenerating speech');
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔊';
+        }
+    }
+}
+
 async function playHistoryTTS(word) {
     try {
         const result = await chrome.storage.local.get('wordHistory');
@@ -697,6 +743,39 @@ async function generateHistoryTTS(word) {
     }
 }
 
+async function regenerateHistoryTTS(word) {
+    try {
+        const btn = document.querySelector(`.history-tts-btn[data-word="${word}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳';
+        }
+
+        const response = await chrome.runtime.sendMessage({
+            type: 'REGENERATE_HISTORY_TTS',
+            word: word
+        });
+
+        if (response.success) {
+            // Reload to show updated button
+            await loadHistoryTab();
+        } else {
+            alert('Error regenerating speech: ' + response.error);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '🔊';
+            }
+        }
+    } catch (error) {
+        console.error('Error regenerating TTS:', error);
+        alert('Error regenerating speech');
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔊';
+        }
+    }
+}
+
 // History Tab
 let allHistory = [];
 
@@ -788,6 +867,17 @@ async function renderHistory(words) {
             } else {
                 // Generate for history word
                 await generateHistoryTTS(word);
+            }
+        });
+
+        // Right-click to regenerate TTS
+        btn.addEventListener('contextmenu', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const word = btn.dataset.word;
+
+            if (confirm(`Regenerate pronunciation for "${word}"?`)) {
+                await regenerateHistoryTTS(word);
             }
         });
     });

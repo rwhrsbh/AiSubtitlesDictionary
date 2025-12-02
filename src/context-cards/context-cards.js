@@ -135,20 +135,34 @@ function handleSubmit(side) {
     if (!value) return;
 
     const card = flashcards[currentIndex];
-    const correctAnswerEn = card.correct_answer_en || card.word;
-    const correctAnswerRu = card.correct_answer_ru;
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
+
+    // Get correct answers based on language codes
+    const correctAnswerFront = card[`correct_answer_${wordLangCode}`] || card.correct_answer_en || card.word;
+    const correctAnswerBack = card[`correct_answer_${targetLangCode}`] || card.correct_answer_ru;
+
+    console.log('[Context Cards] handleSubmit:', {
+        side,
+        value,
+        wordLangCode,
+        targetLangCode,
+        correctAnswerFront,
+        correctAnswerBack,
+        card
+    });
 
     // Check against both languages
     let matchResult;
     if (side === 'front') {
-        // On front side, accept both EN and RU
-        matchResult = isCloseMatch(value, correctAnswerEn, correctAnswerRu);
+        // On front side, accept both word language and target language
+        matchResult = isCloseMatch(value, correctAnswerFront, correctAnswerBack);
     } else {
-        // On back side, accept both RU and EN
-        matchResult = isCloseMatch(value, correctAnswerRu, correctAnswerEn);
+        // On back side, accept both target language and word language
+        matchResult = isCloseMatch(value, correctAnswerBack, correctAnswerFront);
     }
 
-    const displayAnswer = side === 'front' ? correctAnswerEn : correctAnswerRu;
+    const displayAnswer = side === 'front' ? correctAnswerFront : correctAnswerBack;
     handleManualResult(side, matchResult, input, displayAnswer);
 }
 
@@ -456,8 +470,9 @@ function showCard(index) {
     const frontText = card[wordLangCode] || card.en || '';
     const backText = card[targetLangCode] || card.ru || '';
 
-    document.getElementById('front-sentence').textContent = frontText.replace(/_+/g, '______');
-    document.getElementById('back-sentence').textContent = backText.replace(/_+/g, '______');
+    // Replace all consecutive underscores (2 or more) with visual blank
+    document.getElementById('front-sentence').textContent = frontText.replace(/_{2,}/g, '______');
+    document.getElementById('back-sentence').textContent = backText.replace(/_{2,}/g, '______');
 
     // Dynamically determine language badges based on word_language
     const wordLang = card.word_language || 'English'; // Default to English if not specified
@@ -583,12 +598,29 @@ function renderOptions(containerId, options, correctAnswerEn, language) {
     if (!options || options.length === 0) return;
 
     const card = flashcards[currentIndex];
-    const correctAnswer = language === 'en' ?
-        (card.correct_answer_en || correctAnswerEn) :
-        card.correct_answer_ru;
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
 
-    const isAnswered = language === 'en' ? frontAnswered : backAnswered;
-    const savedSelected = language === 'en' ?
+    // Determine which side we're on based on container ID
+    const isFrontSide = containerId === 'front-options';
+
+    // Get correct answer based on side
+    const correctAnswer = isFrontSide ?
+        (card[`correct_answer_${wordLangCode}`] || card.correct_answer_en || correctAnswerEn) :
+        (card[`correct_answer_${targetLangCode}`] || card.correct_answer_ru);
+
+    console.log('[Context Cards] renderOptions:', {
+        containerId,
+        language,
+        wordLangCode,
+        targetLangCode,
+        isFrontSide,
+        correctAnswer,
+        options
+    });
+
+    const isAnswered = isFrontSide ? frontAnswered : backAnswered;
+    const savedSelected = isFrontSide ?
         cardStates[currentIndex]?.frontSelected :
         cardStates[currentIndex]?.backSelected;
 
@@ -631,9 +663,23 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
 
     // Determine if answer is correct
     const isCorrect = selectedOption.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
-    const side = language === 'en' ? 'front' : 'back';
 
-    if (language === 'en') {
+    // Determine side based on container ID
+    const containerId = container.id;
+    const side = containerId === 'front-options' ? 'front' : 'back';
+    const isFrontSide = side === 'front';
+
+    console.log('[Context Cards] handleOptionClick:', {
+        selectedOption,
+        correctAnswer,
+        language,
+        containerId,
+        side,
+        isFrontSide,
+        isCorrect
+    });
+
+    if (isFrontSide) {
         frontAnswered = true;
         frontCorrect = isCorrect;
         cardStates[currentIndex].frontAnswered = true;
@@ -896,7 +942,8 @@ function replaceBlanksForSide(side) {
         const correctAnswerFront = card[correctAnswerKey] || card.correct_answer_en || card.word;
         const sentenceKey = wordLangCode;
         const frontText = card[sentenceKey] || card.en;
-        const frontFilled = frontText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerFront}</strong>`);
+        // Replace all consecutive underscores (2 or more) with the answer
+        const frontFilled = frontText.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswerFront}</strong>`);
         frontSentence.innerHTML = frontFilled;
     } else {
         const backSentence = document.getElementById('back-sentence');
@@ -904,7 +951,8 @@ function replaceBlanksForSide(side) {
         const correctAnswerBack = card[correctAnswerKey] || card.correct_answer_ru;
         const sentenceKey = targetLangCode;
         const backText = card[sentenceKey] || card.ru;
-        const backFilled = backText.replace(/_+/g, `<strong style="color: #60a5fa;">${correctAnswerBack}</strong>`);
+        // Replace all consecutive underscores (2 or more) with the answer
+        const backFilled = backText.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswerBack}</strong>`);
         backSentence.innerHTML = backFilled;
     }
 }

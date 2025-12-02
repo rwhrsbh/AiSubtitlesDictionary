@@ -15,6 +15,8 @@
     "*://*.youtube.com/*",
     "*://generativelanguage.googleapis.com/*",
     "*://rezka.ag/*",
+    "*://rezka-ua.org/*",
+    "*://*.hdrezka.sh/*",
     "*://*.voidboost.com/*"
   ],
   "background": {
@@ -39,7 +41,9 @@
     },
     {
       "matches": [
-        "*://rezka.ag/*"
+        "*://rezka.ag/*",
+        "*://rezka-ua.org/*",
+        "*://*.hdrezka.sh/*"
       ],
       "js": [
         "src/content/i18n_lib.js",

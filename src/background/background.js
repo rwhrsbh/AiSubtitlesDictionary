@@ -172,6 +172,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         setupNotificationAlarm().then(() => sendResponse({ success: true }));
         return true;
     }
+    if (message.type === 'REGENERATE_TTS') {
+        handleRegenerateTTS(message.wordId, message.word).then(sendResponse);
+        return true;
+    }
+    if (message.type === 'REGENERATE_HISTORY_TTS') {
+        handleRegenerateHistoryTTS(message.word).then(sendResponse);
+        return true;
+    }
 });
 
 async function handleGetModels() {
@@ -669,6 +677,92 @@ async function handleGenerateTTSForWordData(wordData) {
     } catch (error) {
         console.error('[Background] TTS Auto-generation error:', error);
         return { success: false, audio: null };
+    }
+}
+
+// Regenerate TTS (force regeneration even if TTS already exists)
+async function handleRegenerateTTS(wordId, word) {
+    console.log('[Background] handleRegenerateTTS called:', { wordId, word });
+    try {
+        const settings = await chrome.storage.local.get(['GEMINI_API_KEY', 'ttsEnabled', 'ttsDifficulty', 'ttsVoice']);
+        console.log('[Background] TTS Settings:', { ttsEnabled: settings.ttsEnabled, ttsDifficulty: settings.ttsDifficulty, hasApiKey: !!settings.GEMINI_API_KEY });
+
+        const apiKey = settings.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error('[Background] API Key not set');
+            return { success: false, error: 'API Key not set' };
+        }
+
+        // Get word data to find language
+        const learningList = await storage.getLearningList();
+        const wordData = learningList.find(w => w.id === wordId);
+
+        if (!wordData) {
+            console.error('[Background] Word not found:', wordId);
+            return { success: false, error: 'Word not found' };
+        }
+
+        console.log('[Background] Word data:', { word: wordData.word, language: wordData.word_language });
+
+        const languageCode = getLanguageCode(wordData.word_language);
+        const difficulty = settings.ttsDifficulty || 'B2';
+        const voiceModel = settings.ttsVoice || 'Zephyr';
+
+        console.log('[Background] Regenerating TTS with:', { word, languageCode, difficulty, voiceModel });
+
+        // Generate TTS (force regeneration)
+        const ttsResult = await tts.generateSpeech(word, languageCode, apiKey, difficulty, voiceModel);
+
+        console.log('[Background] TTS regenerated, saving to storage');
+
+        // Save to storage (overwrite existing)
+        await storage.updateWordTTS(wordId, ttsResult.audio, languageCode, difficulty, ttsResult.mimeType);
+
+        console.log('[Background] TTS regenerated successfully');
+        return { success: true };
+    } catch (error) {
+        console.error('[Background] TTS Regeneration error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Regenerate History TTS
+async function handleRegenerateHistoryTTS(word) {
+    console.log('[Background] handleRegenerateHistoryTTS called:', word);
+    try {
+        const settings = await chrome.storage.local.get(['GEMINI_API_KEY', 'ttsEnabled', 'ttsDifficulty', 'ttsVoice']);
+
+        const apiKey = settings.GEMINI_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: 'API Key not set' };
+        }
+
+        // Get word data from history
+        const result = await chrome.storage.local.get('wordHistory');
+        const history = result.wordHistory || [];
+        const wordData = history.find(w => w.word === word);
+
+        if (!wordData) {
+            return { success: false, error: 'Word not found in history' };
+        }
+
+        const languageCode = getLanguageCode(wordData.word_language);
+        const difficulty = settings.ttsDifficulty || 'B2';
+        const voiceModel = settings.ttsVoice || 'Zephyr';
+
+        console.log('[Background] Regenerating history TTS with:', { word, languageCode, difficulty, voiceModel });
+
+        // Generate TTS (force regeneration)
+        const ttsResult = await tts.generateSpeech(word, languageCode, apiKey, difficulty, voiceModel);
+
+        // Save to storage (overwrite existing)
+        await storage.updateHistoryTTS(word, ttsResult.audio, languageCode, difficulty, ttsResult.mimeType);
+
+        console.log('[Background] History TTS regenerated successfully');
+        return { success: true };
+    } catch (error) {
+        console.error('[Background] History TTS Regeneration error:', error);
+        return { success: false, error: error.message };
     }
 }
 

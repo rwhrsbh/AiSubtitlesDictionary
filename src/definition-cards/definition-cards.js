@@ -144,8 +144,16 @@ function handleSubmit(side) {
     if (!value) return;
 
     const card = cards[currentIndex];
-    const wordEn = card.word;
-    const wordRu = card.word_ru || card.word;
+
+    // Use AI-generated correct answers based on language
+    const wordLangCode = card.word_language_code || 'en';
+    const targetLangCode = targetLanguage.toLowerCase();
+
+    const wordEnKey = `word_${wordLangCode}`;
+    const wordRuKey = `word_${targetLangCode}`;
+
+    const wordEn = card[wordEnKey] || card.word;
+    const wordRu = card[wordRuKey] || card.word_ru || card.word;
 
     // Check against both languages
     let matchResult;
@@ -506,8 +514,14 @@ function showCard(index) {
     const backDistractorsKey = `distractors_${targetLangCode}`;
     const frontDistractors = card[frontDistractorsKey] || card.distractors_en || [];
     const backDistractors = card[backDistractorsKey] || card.distractors_ru || [];
-    const backWord = card[`word_${targetLangCode}`] || card.word_ru || card.word;
-    renderOptions('front-options', frontDistractors, card.word, wordLangCode);
+
+    // Use AI-generated correct answers
+    const frontWordKey = `word_${wordLangCode}`;
+    const backWordKey = `word_${targetLangCode}`;
+    const frontWord = card[frontWordKey] || card.word;
+    const backWord = card[backWordKey] || card.word_ru || card.word;
+
+    renderOptions('front-options', frontDistractors, frontWord, wordLangCode);
     renderOptions('back-options', backDistractors, backWord, targetLangCode);
 
     // Scale card to fit viewport
@@ -590,7 +604,8 @@ function renderExamples(containerId, definitions, langCode, card) {
         examples.forEach(example => {
             const div = document.createElement('div');
             div.className = 'example-item';
-            div.innerHTML = example.text.replace(/____/g, '<span class="example-blank">____</span>');
+            // Replace all consecutive underscores (2 or more) with blank spans
+            div.innerHTML = example.text.replace(/_{2,}/g, '<span class="example-blank">____</span>');
             container.appendChild(div);
         });
     });
@@ -674,10 +689,23 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
             // Fill with the correct answer and mark as correct
             input.value = correctAnswer;
             input.classList.add('correct');
+            // Update state to save the input value
+            if (side === 'front') {
+                cardStates[currentIndex].frontInputValue = correctAnswer;
+            } else {
+                cardStates[currentIndex].backInputValue = correctAnswer;
+            }
         } else {
             // Fill with selected wrong answer and show correct answer
-            input.value = `${selectedOption} (${correctAnswer})`;
+            const displayValue = `${selectedOption} (${correctAnswer})`;
+            input.value = displayValue;
             input.classList.add('wrong');
+            // Update state to save the input value
+            if (side === 'front') {
+                cardStates[currentIndex].frontInputValue = displayValue;
+            } else {
+                cardStates[currentIndex].backInputValue = displayValue;
+            }
         }
     }
 
@@ -715,7 +743,11 @@ function replaceBlanksForSide(side) {
                 examples.forEach(example => {
                     const div = document.createElement('div');
                     div.className = 'example-item';
-                    const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${card.word}</strong>`);
+                    // Use AI-generated correct answer
+                    const correctAnswerKey = `word_${wordLangCode}`;
+                    const correctAnswer = card[correctAnswerKey] || card.word;
+                    // Replace all consecutive underscores (2 or more) with the answer
+                    const filled = example.text.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswer}</strong>`);
                     div.innerHTML = filled;
                     examplesContainerFront.appendChild(div);
                 });
@@ -732,9 +764,11 @@ function replaceBlanksForSide(side) {
                 examples.forEach(example => {
                     const div = document.createElement('div');
                     div.className = 'example-item';
+                    // Use AI-generated correct answer
                     const wordKey = `word_${targetLangCode}`;
                     const wordToFill = card[wordKey] || card.word_ru || card.word;
-                    const filled = example.text.replace(/____/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
+                    // Replace all consecutive underscores (2 or more) with the answer
+                    const filled = example.text.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
                     div.innerHTML = filled;
                     examplesContainerBack.appendChild(div);
                 });

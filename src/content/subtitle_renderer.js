@@ -19,19 +19,34 @@ window.startRenderingSubtitles = async function (events) {
         // Try to find the best container
         const video = document.querySelector('video');
         const youtubeContainer = document.querySelector('.html5-video-player');
-        const rezkaContainer = document.getElementById('cdnplayer') || (video ? video.parentElement : null);
+        const rezkaContainer = document.getElementById('cdnplayer');
+        const videoParent = video ? video.parentElement : null;
+
+        let targetContainer = null;
 
         if (youtubeContainer) {
-            youtubeContainer.appendChild(container);
+            targetContainer = youtubeContainer;
+            console.log('[Subtitle Renderer] Using YouTube container');
         } else if (rezkaContainer) {
-            rezkaContainer.appendChild(container);
-            // Ensure relative positioning for absolute child
-            const style = window.getComputedStyle(rezkaContainer);
-            if (style.position === 'static') {
-                rezkaContainer.style.position = 'relative';
-            }
+            targetContainer = rezkaContainer;
+            console.log('[Subtitle Renderer] Using Rezka container');
+        } else if (videoParent) {
+            targetContainer = videoParent;
+            console.log('[Subtitle Renderer] Using video parent container:', videoParent);
         } else {
-            document.body.appendChild(container);
+            targetContainer = document.body;
+            console.log('[Subtitle Renderer] Using document.body as fallback');
+        }
+
+        targetContainer.appendChild(container);
+
+        // Ensure relative positioning for absolute child (except body)
+        if (targetContainer !== document.body) {
+            const style = window.getComputedStyle(targetContainer);
+            if (style.position === 'static') {
+                console.log('[Subtitle Renderer] Setting target container position to relative');
+                targetContainer.style.position = 'relative';
+            }
         }
     }
 
@@ -50,6 +65,7 @@ window.startRenderingSubtitles = async function (events) {
     renderInterval = setInterval(updateSubtitles, 100);
 
     // Reset positions on start
+    console.log('[AiSub Renderer] Resetting positions on start');
     positions = { windowed: null, fullscreen: null };
 
     // Handle Fullscreen changes
@@ -65,16 +81,20 @@ function handleFullscreenChange() {
         document.mozFullScreenElement ||
         document.msFullscreenElement;
 
+    console.log('[AiSub Renderer] Fullscreen change detected, fullscreenElement:', fullscreenElement);
+
     const container = document.getElementById('aisub-container');
     const settingsBtn = document.getElementById('aisub-settings-btn');
     const settingsPanel = document.getElementById('aisub-settings-panel');
 
     if (fullscreenElement) {
+        console.log('[AiSub Renderer] Entering fullscreen, moving elements to:', fullscreenElement);
         // Move elements to fullscreen container
         if (container) fullscreenElement.appendChild(container);
         if (settingsBtn) fullscreenElement.appendChild(settingsBtn);
         if (settingsPanel) fullscreenElement.appendChild(settingsPanel);
     } else {
+        console.log('[AiSub Renderer] Exiting fullscreen, moving elements back');
         // Move back to default video container
         const video = document.querySelector('video');
         const defaultContainer = document.querySelector('.html5-video-player') ||
@@ -82,20 +102,24 @@ function handleFullscreenChange() {
             (video ? video.parentElement : null) ||
             document.body;
 
+        console.log('[AiSub Renderer] Default container:', defaultContainer);
+
         if (container) defaultContainer.appendChild(container);
         if (settingsBtn) defaultContainer.appendChild(settingsBtn);
         if (settingsPanel) defaultContainer.appendChild(settingsPanel);
 
-        // Fix for Rezka relative positioning if needed
-        if (defaultContainer.id === 'cdnplayer') {
+        // Ensure container has relative positioning for absolute positioning to work
+        if (defaultContainer && defaultContainer !== document.body) {
             const style = window.getComputedStyle(defaultContainer);
             if (style.position === 'static') {
+                console.log('[AiSub Renderer] Setting container position to relative');
                 defaultContainer.style.position = 'relative';
             }
         }
     }
 
     // Apply position for the new state
+    console.log('[AiSub Renderer] Applying position state...');
     applyPositionState();
 }
 
@@ -392,13 +416,17 @@ function applyPositionState() {
     const mode = isFullscreen ? 'fullscreen' : 'windowed';
     const saved = positions[mode];
 
+    console.log('[AiSub Renderer] applyPositionState - mode:', mode, 'saved:', saved);
+
     if (saved) {
+        console.log('[AiSub Renderer] Applying saved position:', saved);
         container.style.top = saved.top;
         container.style.left = saved.left;
         container.style.transform = 'none';
         container.style.bottom = 'auto'; // Override CSS bottom
     } else {
         // Reset to default (Center Bottom)
+        console.log('[AiSub Renderer] No saved position, resetting to default (center bottom)');
         container.style.top = '';
         container.style.left = '50%';
         container.style.transform = 'translateX(-50%)';

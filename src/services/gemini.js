@@ -183,6 +183,11 @@ Requirements:
 - Distractors should be in the same language as the word they're meant to replace
 - Hints should guide thinking without revealing the answer
 - Explanations should teach the word usage IN THE ORIGINAL LANGUAGE
+- **CRITICAL: DO NOT use the target word itself or any related/derived forms in the sentence (except in the blank)!**
+  * BAD: "długa" → "Ta droga ma dużą **długość**" ❌ (uses derived form "długość")
+  * GOOD: "długa" → "Ta droga jest bardzo ___" ✓
+  * BAD: "бежать" → "Во время **бега** я ___" ❌ (uses derived noun "бега")
+  * GOOD: "бежать" → "Каждое утро я ___ в парке" ✓
 
 CRITICAL VALIDATION RULES FOR TARGET LANGUAGE TRANSLATIONS:
 - The TARGET language translation of the correct word MUST be the ONLY logically and semantically correct answer for the TARGET language sentence
@@ -363,6 +368,8 @@ Return ONLY the JSON array, no explanations.
     - Replace the word with ____ in examples
     - Distractors should be similar words that could be confused with the target word
     - Explanation should clarify the meaning and usage
+    - In case the word is a verb and it is in the infinitive form, you can use different verb forms in the examples.
+    - For german verbs with a separable prefix you should generate at least one example where the prefix is separated.
 
     CRITICAL JSON FORMATTING:
     - ALL field values MUST be valid JSON strings (in double quotes)
@@ -459,6 +466,11 @@ Return ONLY the JSON array, no explanations.
         - Show DIVERSE situations and contexts
         - GOOD: "The government decided to ____ humanitarian aid to the conflict zone, despite international pressure to provide assistance."
         - BAD: "They ____ food." ❌ (too short, no context)
+        - **CRITICAL: DO NOT use the target word itself or any related/derived forms in examples or definitions!**
+          * BAD: "długa" → "Mająca dużą **długość**" ❌ (uses derived form "długość")
+          * GOOD: "długa" → "Mająca znaczny wymiar od jednego końca do drugiego" ✓
+          * BAD: "бежать" → "Действие **бега**" ❌ (uses derived noun "бега")
+          * GOOD: "бежать" → "Быстро перемещаться на ногах" ✓
 
         CRITICAL: SHOW ALL PARTS OF SPEECH:
         - If a word can be MULTIPLE parts of speech (noun, verb, adjective, etc.), create SEPARATE definitions for EACH
@@ -585,6 +597,9 @@ Return ONLY the JSON array, no explanations.
         - Examples should be natural and practical IN BOTH LANGUAGES
         - Replace the word with ____ in examples
         - Distractors should fit the context of a "definition match" quiz
+        - In case the word is a verb and it is in the infinitive form, you can use different verb forms in the examples.
+        - For German verbs with a separable prefix you should generate at least one example where the prefix is separated.
+
 
         Return ONLY the JSON array, no explanations.
         `;

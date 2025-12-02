@@ -276,7 +276,28 @@ export class StorageService {
                 // Settings - overwrite if present in import, else keep current
                 appLanguage: data.appLanguage || currentData.appLanguage,
                 geminiModel: data.geminiModel || currentData.geminiModel,
-                flashcardsIncludeHistory: data.flashcardsIncludeHistory !== undefined ? data.flashcardsIncludeHistory : currentData.flashcardsIncludeHistory
+                flashcardsIncludeHistory: data.flashcardsIncludeHistory !== undefined ? data.flashcardsIncludeHistory : currentData.flashcardsIncludeHistory,
+                quizTranslation: data.quizTranslation !== undefined ? data.quizTranslation : currentData.quizTranslation,
+                quizTranscription: data.quizTranscription !== undefined ? data.quizTranscription : currentData.quizTranscription,
+                tasksLimit: data.tasksLimit || currentData.tasksLimit,
+                simpleFlashcardsWordsLimit: data.simpleFlashcardsWordsLimit || currentData.simpleFlashcardsWordsLimit,
+                simpleFlashcardsExercisesLimit: data.simpleFlashcardsExercisesLimit || currentData.simpleFlashcardsExercisesLimit,
+                flashcardsWordsLimit: data.flashcardsWordsLimit || currentData.flashcardsWordsLimit,
+                flashcardsExercisesLimit: data.flashcardsExercisesLimit || currentData.flashcardsExercisesLimit,
+                defCardsWordsLimit: data.defCardsWordsLimit || currentData.defCardsWordsLimit,
+                defCardsExercisesLimit: data.defCardsExercisesLimit || currentData.defCardsExercisesLimit,
+                ttsEnabled: data.ttsEnabled !== undefined ? data.ttsEnabled : currentData.ttsEnabled,
+                ttsAutoGenerate: data.ttsAutoGenerate !== undefined ? data.ttsAutoGenerate : currentData.ttsAutoGenerate,
+                ttsDifficulty: data.ttsDifficulty || currentData.ttsDifficulty,
+                ttsVoice: data.ttsVoice || currentData.ttsVoice,
+                notificationsEnabled: data.notificationsEnabled !== undefined ? data.notificationsEnabled : currentData.notificationsEnabled,
+                notificationFrequency: data.notificationFrequency || currentData.notificationFrequency,
+                notificationMinWords: data.notificationMinWords !== undefined ? data.notificationMinWords : currentData.notificationMinWords,
+                notificationQuietStart: data.notificationQuietStart !== undefined ? data.notificationQuietStart : currentData.notificationQuietStart,
+                notificationQuietEnd: data.notificationQuietEnd !== undefined ? data.notificationQuietEnd : currentData.notificationQuietEnd,
+                notificationSound: data.notificationSound !== undefined ? data.notificationSound : currentData.notificationSound,
+                notificationRequireInteraction: data.notificationRequireInteraction !== undefined ? data.notificationRequireInteraction : currentData.notificationRequireInteraction,
+                categorySettings: data.categorySettings || currentData.categorySettings
             };
 
             await chrome.storage.local.set(updates);
