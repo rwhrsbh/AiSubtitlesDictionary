@@ -298,10 +298,7 @@ retryBtn.addEventListener('click', () => {
 });
 
 restartBtn.addEventListener('click', () => {
-    currentIndex = 0;
-    showCard(currentIndex);
-    completeScreen.classList.add('hidden');
-    cardContainer.classList.remove('hidden');
+    location.reload();
 });
 
 closeBtn.addEventListener('click', () => {
@@ -470,9 +467,10 @@ function showCard(index) {
     const frontText = card[wordLangCode] || card.en || '';
     const backText = card[targetLangCode] || card.ru || '';
 
-    // Replace all consecutive underscores (2 or more) with visual blank
-    document.getElementById('front-sentence').textContent = frontText.replace(/_{2,}/g, '______');
-    document.getElementById('back-sentence').textContent = backText.replace(/_{2,}/g, '______');
+    // Replace numbered blanks (____1____, ____2____) and regular blanks with visual blank in blue
+    // Matches both ____1____ and ____ and replaces with ______
+    document.getElementById('front-sentence').innerHTML = frontText.replace(/_{2,}\d+_{2,}|_{2,}/g, '<strong style="color: #60a5fa;">______</strong>');
+    document.getElementById('back-sentence').innerHTML = backText.replace(/_{2,}\d+_{2,}|_{2,}/g, '<strong style="color: #60a5fa;">______</strong>');
 
     // Dynamically determine language badges based on word_language
     const wordLang = card.word_language || 'English'; // Default to English if not specified
@@ -942,8 +940,24 @@ function replaceBlanksForSide(side) {
         const correctAnswerFront = card[correctAnswerKey] || card.correct_answer_en || card.word;
         const sentenceKey = wordLangCode;
         const frontText = card[sentenceKey] || card.en;
-        // Replace all consecutive underscores (2 or more) with the answer
-        const frontFilled = frontText.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswerFront}</strong>`);
+
+        // Check for answer_parts for numbered blanks
+        const answerPartsKey = `answer_parts_${wordLangCode}`;
+        const answerParts = card[answerPartsKey];
+
+        let frontFilled = frontText;
+        if (answerParts && Array.isArray(answerParts) && answerParts.length > 0) {
+            // Replace numbered blanks: ____1____, ____2____, etc.
+            answerParts.forEach((part, index) => {
+                const blankNum = index + 1;
+                const regex = new RegExp(`_{2,}${blankNum}_{2,}`, 'g');
+                frontFilled = frontFilled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+            });
+        } else {
+            // Fallback: replace all blanks with full answer
+            frontFilled = frontFilled.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswerFront}</strong>`);
+        }
+
         frontSentence.innerHTML = frontFilled;
     } else {
         const backSentence = document.getElementById('back-sentence');
@@ -951,8 +965,24 @@ function replaceBlanksForSide(side) {
         const correctAnswerBack = card[correctAnswerKey] || card.correct_answer_ru;
         const sentenceKey = targetLangCode;
         const backText = card[sentenceKey] || card.ru;
-        // Replace all consecutive underscores (2 or more) with the answer
-        const backFilled = backText.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswerBack}</strong>`);
+
+        // Check for answer_parts for numbered blanks
+        const answerPartsKey = `answer_parts_${targetLangCode}`;
+        const answerParts = card[answerPartsKey];
+
+        let backFilled = backText;
+        if (answerParts && Array.isArray(answerParts) && answerParts.length > 0) {
+            // Replace numbered blanks: ____1____, ____2____, etc.
+            answerParts.forEach((part, index) => {
+                const blankNum = index + 1;
+                const regex = new RegExp(`_{2,}${blankNum}_{2,}`, 'g');
+                backFilled = backFilled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+            });
+        } else {
+            // Fallback: replace all blanks with full answer
+            backFilled = backFilled.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswerBack}</strong>`);
+        }
+
         backSentence.innerHTML = backFilled;
     }
 }

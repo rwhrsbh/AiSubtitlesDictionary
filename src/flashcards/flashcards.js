@@ -255,8 +255,25 @@ function replaceBlanksWithAnswer() {
     examples.forEach(example => {
         const div = document.createElement('div');
         div.className = 'example-item';
-        // Replace all consecutive underscores (2 or more) with the answer
-        const filled = example.text.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswer}</strong>`);
+
+        let filled = example.text;
+
+        // Check for answer_parts with language code for numbered blanks
+        const answerPartsKey = `answer_parts_${wordLangCode}`;
+        const answerParts = example[answerPartsKey];
+
+        if (answerParts && Array.isArray(answerParts) && answerParts.length > 0) {
+            // Replace numbered blanks: ____1____, ____2____, etc.
+            answerParts.forEach((part, index) => {
+                const blankNum = index + 1;
+                const regex = new RegExp(`_{2,}${blankNum}_{2,}`, 'g');
+                filled = filled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+            });
+        } else {
+            // Fallback: replace all blanks with full answer
+            filled = filled.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswer}</strong>`);
+        }
+
         div.innerHTML = filled;
         container.appendChild(div);
     });
@@ -291,10 +308,7 @@ retryBtn.addEventListener('click', () => {
 });
 
 restartBtn.addEventListener('click', () => {
-    currentIndex = 0;
-    showCard(currentIndex);
-    completeScreen.classList.add('hidden');
-    cardContainer.classList.remove('hidden');
+    location.reload();
 });
 
 closeBtn.addEventListener('click', () => {
@@ -447,8 +461,8 @@ function renderExamples(card) {
     examples.forEach(example => {
         const div = document.createElement('div');
         div.className = 'example-item';
-        // Replace all consecutive underscores (2 or more) with blank spans
-        div.innerHTML = example.text.replace(/_{2,}/g, '<span class="example-blank">____</span>');
+        // Replace all consecutive underscores (2 or more) with visual blank in blue
+        div.innerHTML = example.text.replace(/_{2,}\d+_{2,}|_{2,}/g, '<strong style="color: #60a5fa;">______</strong>');
         container.appendChild(div);
     });
 }

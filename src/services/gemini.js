@@ -189,6 +189,21 @@ Requirements:
   * BAD: "бежать" → "Во время **бега** я ___" ❌ (uses derived noun "бега")
   * GOOD: "бежать" → "Каждое утро я ___ в парке" ✓
 
+**SPECIAL RULE FOR MULTI-WORD ANSWERS (separable verbs, phrasal verbs, compounds):**
+- If the correct answer contains multiple words that appear in DIFFERENT positions in the sentence, use NUMBERED blanks
+- Use format: ____1____, ____2____, ____3____, etc.
+- **CRITICAL: You MUST ALWAYS provide "answer_parts_[LANG_CODE]" array when using numbered blanks**
+- Provide "answer_parts_[LANG_CODE]" as an array where index 0 = blank 1, index 1 = blank 2, etc.
+- Example for German separable verb "zumachen" (to close):
+  * Sentence: "Ich ____1____ immer die Fenster ____2____, bevor ich das Haus verlasse"
+  * answer_parts_de: ["mache", "zu"]
+  * correct_answer_de: "zumachen" (full form for reference)
+- Example for English phrasal verb "pick up":
+  * Sentence: "Please ____1____ your toys ____2____ from the floor"
+  * answer_parts_en: ["pick", "up"]
+  * correct_answer_en: "pick up"
+- **MANDATORY: Every numbered blank (____1____, ____2____, etc.) MUST have a corresponding entry in answer_parts array**
+
 CRITICAL VALIDATION RULES FOR TARGET LANGUAGE TRANSLATIONS:
 - The TARGET language translation of the correct word MUST be the ONLY logically and semantically correct answer for the TARGET language sentence
 - Double-check that NONE of the TARGET language distractors would make semantic sense in the TARGET language sentence context
@@ -360,12 +375,47 @@ Return ONLY the JSON array, no explanations.
       "explanation_${targetLangCode}": "Слово 'uns' (нас/нам) - это личное местоимение 1-го лица множественного числа в винительном и дательном падежах. Может использоваться как ПРЯМОЕ ДОПОЛНЕНИЕ (кого? - видеть нас) и как КОСВЕННОЕ ДОПОЛНЕНИЕ (кому? - давать нам)."
     }
 
+    **EXAMPLE FOR GERMAN SEPARABLE VERB (when UI language is ${targetLang}):**
+    {
+      "word_language": "German",
+      "word_language_code": "de",
+      "word": "zumachen",
+      "word_${targetLangCode}": "закрывать",
+      "transcription": "/ˈtsuːmaxən/",
+      "distractors_de": ["aufmachen", "öffnen", "schließen"],
+      "distractors_${targetLangCode}": ["открывать", "открыть", "закрыть"],
+      "examples_de": [
+        { "text": "Bitte ____1____ das Fenster ____2____, es ist kalt draußen.", "answer_parts_de": ["mache", "zu"] },
+        { "text": "Ich ____1____ immer die Tür ____2____, wenn ich das Haus verlasse.", "answer_parts_de": ["mache", "zu"] }
+      ],
+      "examples_${targetLangCode}": [
+        { "text": "Пожалуйста, ____ окно, на улице холодно." },
+        { "text": "Я всегда ____ дверь, когда выхожу из дома." }
+      ],
+      "explanation_de": "Das Verb 'zumachen' ist ein trennbares Verb, das 'schließen' oder 'verschließen' bedeutet. Im Hauptsatz wird das Präfix 'zu' vom Verbstamm getrennt und steht am Satzende.",
+      "explanation_${targetLangCode}": "Глагол 'zumachen' (закрывать) - это отделяемый глагол. В главном предложении приставка 'zu' отделяется от основы глагола и ставится в конец предложения."
+    }
+
     IMPORTANT:
     - Include "word_language_code" field with 2-letter ISO code
     - Use dynamic keys: distractors_[DETECTED_LANG_CODE], examples_[DETECTED_LANG_CODE], explanation_[DETECTED_LANG_CODE]
     - Always include ${targetLangCode} versions: word_${targetLangCode}, distractors_${targetLangCode}, examples_${targetLangCode}, explanation_${targetLangCode}
     - Examples should be natural and practical IN BOTH LANGUAGES
     - Replace the word with ____ in examples
+
+    **SPECIAL RULE FOR MULTI-WORD ANSWERS (separable verbs, phrasal verbs, compounds):**
+    - If the correct answer contains multiple words that appear in DIFFERENT positions in the sentence, use NUMBERED blanks
+    - Use format: ____1____, ____2____, ____3____, etc.
+    - **CRITICAL: You MUST ALWAYS provide "answer_parts_[LANG_CODE]" array when using numbered blanks**
+    - Provide "answer_parts_[LANG_CODE]" as an array where index 0 = blank 1, index 1 = blank 2, etc.
+    - Example for German separable verb "zumachen" (to close):
+      * In examples_de: { "text": "Ich ____1____ immer die Fenster ____2____, bevor ich das Haus verlasse", "answer_parts_de": ["mache", "zu"] }
+      * word_de: "zumachen" (full infinitive form)
+    - Example for English phrasal verb "pick up":
+      * In examples_en: { "text": "Please ____1____ your toys ____2____ from the floor", "answer_parts_en": ["pick", "up"] }
+      * word_en: "pick up"
+    - **MANDATORY: Every numbered blank (____1____, ____2____, etc.) MUST have a corresponding entry in answer_parts_[LANG_CODE] array**
+
     - Distractors should be similar words that could be confused with the target word
     - Explanation should clarify the meaning and usage
     - In case the word is a verb and it is in the infinitive form, you can use different verb forms in the examples.
@@ -471,6 +521,15 @@ Return ONLY the JSON array, no explanations.
           * GOOD: "długa" → "Mająca znaczny wymiar od jednego końca do drugiego" ✓
           * BAD: "бежать" → "Действие **бега**" ❌ (uses derived noun "бега")
           * GOOD: "бежать" → "Быстро перемещаться на ногах" ✓
+
+        **SPECIAL RULE FOR MULTI-WORD ANSWERS IN EXAMPLES (separable verbs, phrasal verbs):**
+        - If the word appears in MULTIPLE positions in the example sentence, use NUMBERED blanks
+        - Format: ____1____, ____2____, ____3____, etc.
+        - **CRITICAL: You MUST ALWAYS provide "answer_parts_[LANG_CODE]" array when using numbered blanks**
+        - Add "answer_parts_[LANG_CODE]" array to the example object: ["part1", "part2", ...]
+        - Example for English: { "text": "Please ____1____ your toys ____2____ from the floor", "answer_parts_en": ["pick", "up"], "preposition": null }
+        - Example for German: { "text": "Ich ____1____ die Tür ____2____", "answer_parts_de": ["mache", "zu"], "preposition": null }
+        - **MANDATORY: Every numbered blank (____1____, ____2____, etc.) MUST have a corresponding entry in answer_parts_[LANG_CODE] array**
 
         CRITICAL: SHOW ALL PARTS OF SPEECH:
         - If a word can be MULTIPLE parts of speech (noun, verb, adjective, etc.), create SEPARATE definitions for EACH

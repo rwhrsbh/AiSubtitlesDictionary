@@ -287,10 +287,7 @@ retryBtn.addEventListener('click', () => {
 });
 
 restartBtn.addEventListener('click', () => {
-    currentIndex = 0;
-    showCard(currentIndex);
-    completeScreen.classList.add('hidden');
-    cardContainer.classList.remove('hidden');
+    location.reload();
 });
 
 closeBtn.addEventListener('click', () => {
@@ -604,8 +601,8 @@ function renderExamples(containerId, definitions, langCode, card) {
         examples.forEach(example => {
             const div = document.createElement('div');
             div.className = 'example-item';
-            // Replace all consecutive underscores (2 or more) with blank spans
-            div.innerHTML = example.text.replace(/_{2,}/g, '<span class="example-blank">____</span>');
+            // Replace all consecutive underscores (2 or more) with visual blank in blue
+            div.innerHTML = example.text.replace(/_{2,}\d+_{2,}|_{2,}/g, '<strong style="color: #60a5fa;">______</strong>');
             container.appendChild(div);
         });
     });
@@ -621,7 +618,9 @@ function renderOptions(containerId, distractors, correctAnswer, language) {
     // Combine and shuffle
     const options = [...distractors, correctAnswer].sort(() => Math.random() - 0.5);
 
-    const isAnswered = language === 'en' ? frontAnswered : backAnswered;
+    // Determine side based on container ID instead of language
+    const isFrontSide = containerId === 'front-options';
+    const isAnswered = isFrontSide ? frontAnswered : backAnswered;
 
     options.forEach(option => {
         const btn = document.createElement('button');
@@ -648,9 +647,13 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
     allButtons.forEach(b => b.disabled = true);
 
     const isCorrect = selectedOption === correctAnswer;
-    const side = language === 'en' ? 'front' : 'back';
 
-    if (language === 'en') {
+    // Determine side based on container ID instead of language
+    const containerId = container.id;
+    const isFrontSide = containerId === 'front-options';
+    const side = isFrontSide ? 'front' : 'back';
+
+    if (isFrontSide) {
         frontAnswered = true;
         frontCorrect = isCorrect;
         cardStates[currentIndex] = cardStates[currentIndex] || {};
@@ -674,13 +677,13 @@ function handleOptionClick(btn, selectedOption, correctAnswer, language, contain
     }
 
     // Show transcription immediately for this side
-    const transId = language === 'en' ? 'card-transcription' : 'card-transcription-ru';
+    const transId = isFrontSide ? 'card-transcription' : 'card-transcription-ru';
     document.getElementById(transId).classList.remove('hidden');
 
     // Always update the manual input to synchronize both modes
-    const inputId = language === 'en' ? 'front-input' : 'back-input';
+    const inputId = isFrontSide ? 'front-input' : 'back-input';
     const input = document.getElementById(inputId);
-    const submitBtn = document.getElementById(language === 'en' ? 'front-submit' : 'back-submit');
+    const submitBtn = document.getElementById(isFrontSide ? 'front-submit' : 'back-submit');
     if (input) {
         input.disabled = true;
         submitBtn.disabled = true;
@@ -746,8 +749,37 @@ function replaceBlanksForSide(side) {
                     // Use AI-generated correct answer
                     const correctAnswerKey = `word_${wordLangCode}`;
                     const correctAnswer = card[correctAnswerKey] || card.word;
-                    // Replace all consecutive underscores (2 or more) with the answer
-                    const filled = example.text.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${correctAnswer}</strong>`);
+
+                    let filled = example.text;
+
+                    // Check for answer_parts in the example object for numbered blanks
+                    const answerPartsKey = `answer_parts_${wordLangCode}`;
+                    const answerParts = example[answerPartsKey];
+
+                    if (answerParts && Array.isArray(answerParts) && answerParts.length > 0) {
+                        // Replace numbered blanks: ____1____, ____2____, etc.
+                        answerParts.forEach((part, index) => {
+                            const blankNum = index + 1;
+                            const regex = new RegExp(`__+${blankNum}__+`, 'g');
+                            filled = filled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+                        });
+                    } else {
+                        // Fallback: check if we have numbered blanks
+                        const hasNumberedBlanks = /__+\d+__+/.test(filled);
+                        if (hasNumberedBlanks) {
+                            // Try to split correctAnswer by spaces and use parts for numbered blanks
+                            const parts = correctAnswer.split(' ');
+                            parts.forEach((part, index) => {
+                                const blankNum = index + 1;
+                                const regex = new RegExp(`__+${blankNum}__+`, 'g');
+                                filled = filled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+                            });
+                        } else {
+                            // Normal case: replace simple blanks with full answer
+                            filled = filled.replace(/__+/g, `<strong style="color: #60a5fa;">${correctAnswer}</strong>`);
+                        }
+                    }
+
                     div.innerHTML = filled;
                     examplesContainerFront.appendChild(div);
                 });
@@ -767,8 +799,37 @@ function replaceBlanksForSide(side) {
                     // Use AI-generated correct answer
                     const wordKey = `word_${targetLangCode}`;
                     const wordToFill = card[wordKey] || card.word_ru || card.word;
-                    // Replace all consecutive underscores (2 or more) with the answer
-                    const filled = example.text.replace(/_{2,}/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
+
+                    let filled = example.text;
+
+                    // Check for answer_parts with language code for numbered blanks
+                    const answerPartsKey = `answer_parts_${targetLangCode}`;
+                    const answerParts = example[answerPartsKey];
+
+                    if (answerParts && Array.isArray(answerParts) && answerParts.length > 0) {
+                        // Replace numbered blanks: ____1____, ____2____, etc.
+                        answerParts.forEach((part, index) => {
+                            const blankNum = index + 1;
+                            const regex = new RegExp(`__+${blankNum}__+`, 'g');
+                            filled = filled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+                        });
+                    } else {
+                        // Fallback: check if we have numbered blanks
+                        const hasNumberedBlanks = /__+\d+__+/.test(filled);
+                        if (hasNumberedBlanks) {
+                            // Try to split correctAnswer by spaces and use parts for numbered blanks
+                            const parts = wordToFill.split(' ');
+                            parts.forEach((part, index) => {
+                                const blankNum = index + 1;
+                                const regex = new RegExp(`__+${blankNum}__+`, 'g');
+                                filled = filled.replace(regex, `<strong style="color: #60a5fa;">${part}</strong>`);
+                            });
+                        } else {
+                            // Normal case: replace simple blanks with full answer
+                            filled = filled.replace(/__+/g, `<strong style="color: #60a5fa;">${wordToFill}</strong>`);
+                        }
+                    }
+
                     div.innerHTML = filled;
                     examplesContainerBack.appendChild(div);
                 });
